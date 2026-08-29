@@ -1,6 +1,6 @@
 /*
  * South Park / Kill Kenny catalog for Lampa 3.x
- * v1.1.0
+ * v1.2.0
  *
  * Architecture:
  *   Lampa.Maker native UI -> catalog.json on GitHub Pages
@@ -13,7 +13,7 @@
 
     var PLUGIN_ID = 'sp_killkenny_v1';
     var COMPONENT = 'sp_killkenny_native';
-    var VERSION = '1.1.0';
+    var VERSION = '1.2.0';
     var TITLE = 'Южный Парк';
 
     var SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
@@ -358,10 +358,10 @@
             html: modalHtml(episode, stream),
             size: 'medium',
             onBack: function () {
-                Lampa.Modal.close();
-
                 if (controller) {
-                    Lampa.Controller.toggle(controller);
+                    setTimeout(function () {
+                        Lampa.Controller.toggle(controller);
+                    }, 0);
                 }
             }
         });
@@ -407,7 +407,7 @@
 
                     setTimeout(function () {
                         playEpisode(episode);
-                    }, 60);
+                    }, 120);
 
                     return;
                 }
@@ -417,7 +417,7 @@
 
                     setTimeout(function () {
                         showEpisodeInfo(episode, controller);
-                    }, 60);
+                    }, 120);
 
                     return;
                 }
@@ -430,10 +430,10 @@
             },
 
             onBack: function () {
-                Lampa.Select.close();
-
                 if (controller) {
-                    Lampa.Controller.toggle(controller);
+                    setTimeout(function () {
+                        Lampa.Controller.toggle(controller);
+                    }, 0);
                 }
             }
         });
@@ -609,7 +609,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'Native Lampa.Maker UI + action menu + GitHub catalog.json'
+                    description: 'Native Lampa.Maker UI + fixed action menu + GitHub catalog.json'
                 };
             }
         } catch (e) {}
