@@ -1,6 +1,6 @@
 /*
  * Kill Kenny Catalog for Lampa
- * v0.6.0
+ * v0.7.0
  *
  * Назначение:
  *  - читает каталог kill-kenny.com
@@ -18,7 +18,6 @@
     var BASE = 'https://kill-kenny.com';
     var HOME = BASE + '/';
     var TITLE = 'Южный Парк — Kill Kenny';
-    var READER_BASE = 'https://r.jina.ai/';
 
     // Прямые HLS-шаблоны. Добавляйте сюда только известные вам разрешённые потоки.
     // Пример, который был предоставлен пользователем:
@@ -51,8 +50,8 @@
         '.kk-details.active{display:block}',
         '.kk-details__title{font-size:1.12em;font-weight:650;margin-bottom:.45em}',
         '.kk-details__text{font-size:1em;line-height:1.42;opacity:.78;white-space:normal}',
-        '.kk-list{display:flex;flex-direction:column;gap:.6em;max-width:78em;padding-bottom:2em}',
-        '.kk-card{display:flex;align-items:center;gap:1em;padding:1em 1.15em;border-radius:.8em;background:rgba(255,255,255,.07)}',
+        '.kk-list{display:flex;flex-direction:column;gap:.6em;max-width:78em;padding-bottom:3em}',
+        '.kk-card{display:flex;align-items:center;gap:1em;padding:1em 1.15em;border-radius:.8em;background:rgba(255,255,255,.07);cursor:pointer}',
         '.kk-card.focus{background:rgba(255,255,255,.18);transform:scale(1.008)}',
         '.kk-badge{display:flex;align-items:center;justify-content:center;flex:0 0 4.5em;height:3.1em;border-radius:.65em;background:rgba(255,255,255,.11);font-weight:700}',
         '.kk-body{min-width:0}',
@@ -97,50 +96,48 @@
         var net = new Lampa.Reguest();
         var finished = false;
 
-        function complete(data) {
-            if (finished) return true;
-            var text = '';
-            try {
-                text = typeof data === 'string' ? data : (data && data.responseText ? data.responseText : String(data || ''));
-            } catch (e) { text = ''; }
-            if (!text || text.length < 20) return false;
+        function ok(data) {
+            if (finished) return;
             finished = true;
-            done(text);
-            return true;
+            done(String(data || ''));
         }
 
-        function failed(err) {
+        function bad(err) {
             if (finished) return;
             finished = true;
             fail(err || 'network error');
         }
 
-        function readerFallback() {
-            if (finished) return;
-            try {
-                net.silent(
-                    READER_BASE + url,
-                    function (data) { if (!complete(data)) failed('Reader returned empty response'); },
-                    failed,
-                    false,
-                    {
-                        dataType: 'text',
-                        headers: {
-                            'Accept': 'text/html,text/plain;q=0.9,*/*;q=0.8',
-                            'X-Respond-With': 'html'
-                        }
-                    }
-                );
-            } catch (e) { failed(e); }
-        }
+        try {
+            if (net.timeout) net.timeout(18000);
 
-        function directFallback() {
-            if (finished) return;
-            try {
+            // На Android TV / части сборок Lampa native-запрос умеет обходить browser CORS.
+            if (typeof net.native === 'function') {
+                net.native(url, ok, function () {
+                    // fallback на silent
+                    try {
+                        net.silent(
+                            url,
+                            ok,
+                            bad,
+                            false,
+                            {
+                                dataType: 'text',
+                                headers: {
+                                    'Accept': 'text/html,application/xhtml+xml',
+                                    'Cache-Control': 'no-cache'
+                                }
+                            }
+                        );
+                    } catch (e2) {
+                        bad(e2);
+                    }
+                });
+            } else {
                 net.silent(
                     url,
-                    function (data) { if (!complete(data)) readerFallback(); },
-                    readerFallback,
+                    ok,
+                    bad,
                     false,
                     {
                         dataType: 'text',
@@ -150,19 +147,10 @@
                         }
                     }
                 );
-            } catch (e) { readerFallback(); }
-        }
-
-        try {
-            if (net.timeout) net.timeout(18000);
-            if (typeof net.native === 'function') {
-                net.native(url, function (data) {
-                    if (!complete(data)) directFallback();
-                }, directFallback);
-            } else {
-                directFallback();
             }
-        } catch (e) { directFallback(); }
+        } catch (e) {
+            bad(e);
+        }
 
         return net;
     }
@@ -413,12 +401,12 @@
 
     function seasonUrl(number) {
         number = parseInt(number, 10) || 0;
-        var slug = number < 10 ? ('0' + number) : String(number);
-        return BASE + '/season-' + slug + '/';
+        return BASE + '/season-' + (number < 10 ? ('0' + number) : String(number)) + '/';
     }
 
     function fallbackSeasons() {
         var list = [];
+
         for (var i = 1; i <= 28; i++) {
             list.push({
                 kind: 'season',
@@ -427,6 +415,7 @@
                 url: seasonUrl(i)
             });
         }
+
         return list;
     }
 
@@ -480,6 +469,8 @@
         var self = this;
         var network = null;
         var last = null;
+        var wheelAccumulator = 0;
+        var wheelTimer = null;
 
         var scroll = new Lampa.Scroll({
             mask: true,
@@ -559,6 +550,85 @@
             }, 280);
         }
 
+        function setFocus(target) {
+            if (!target || !target.length) return;
+
+            last = target[0];
+
+            try {
+                Lampa.Controller.collectionFocus(last, scroll.render());
+            } catch (e) {
+                list.find('.selector.focus').removeClass('focus');
+                target.addClass('focus');
+
+                try {
+                    target.trigger('hover:focus');
+                } catch (triggerError) {}
+            }
+
+            try {
+                scroll.update(target, true);
+            } catch (scrollError) {}
+        }
+
+        function wheelMove(event) {
+            var original = event.originalEvent || event;
+            var delta = Number(original.deltaY || 0);
+
+            if (!delta && original.wheelDelta) {
+                delta = -Number(original.wheelDelta);
+            }
+
+            if (!delta && original.detail) {
+                delta = Number(original.detail) * 40;
+            }
+
+            if (!delta) return;
+
+            if (event.preventDefault) event.preventDefault();
+            if (event.stopPropagation) event.stopPropagation();
+
+            wheelAccumulator += delta;
+
+            if (wheelTimer) clearTimeout(wheelTimer);
+
+            wheelTimer = setTimeout(function () {
+                wheelAccumulator = 0;
+            }, 160);
+
+            if (Math.abs(wheelAccumulator) < 28) return;
+
+            var direction = wheelAccumulator > 0 ? 1 : -1;
+            wheelAccumulator = 0;
+
+            var selectors = list.find('.selector:visible');
+            if (!selectors.length) return;
+
+            var current = last ? selectors.index(last) : -1;
+
+            if (current < 0) {
+                var focused = selectors.filter('.focus').first();
+                current = focused.length ? selectors.index(focused[0]) : 0;
+            }
+
+            var next = current + direction;
+
+            if (next < 0) next = 0;
+            if (next >= selectors.length) next = selectors.length - 1;
+
+            setFocus(selectors.eq(next));
+        }
+
+        function bindDesktopScroll() {
+            var viewport = scroll.render();
+
+            viewport.off('.kkwheel');
+            viewport.on(
+                'wheel.kkwheel mousewheel.kkwheel DOMMouseScroll.kkwheel',
+                wheelMove
+            );
+        }
+
         function card(item) {
             var el = $(
                 '<div class="kk-card selector">' +
@@ -585,16 +655,25 @@
             );
 
             el.on('hover:focus', function (e) {
-                last = e && e.target ? e.target : el[0];
-                try { scroll.update($(last), true); } catch (scrollError) {}
+                last = (e && e.target) ? e.target : el[0];
+
+                try {
+                    scroll.update($(last), true);
+                } catch (scrollError) {}
+
                 if (item.kind === 'episode') showEpisodeDetails(item);
                 else hideDetails();
             });
 
             el.on('mouseenter', function () {
-                last = el[0];
-                try { scroll.update(el, true); } catch (scrollError) {}
+                setFocus(el);
+
                 if (item.kind === 'episode') showEpisodeDetails(item);
+                else hideDetails();
+            });
+
+            el.on('click', function () {
+                el.trigger('hover:enter');
             });
 
             el.on('hover:enter', function () {
@@ -627,9 +706,16 @@
             });
 
             last = list.find('.selector').eq(0)[0] || null;
+            bindDesktopScroll();
 
             setTimeout(function () {
                 self.start();
+
+                if (last) {
+                    try {
+                        setFocus($(last));
+                    } catch (e) {}
+                }
             }, 50);
         }
 
@@ -686,7 +772,9 @@
                 },
                 function () {
                     message(
-                        'Список серий получить не удалось. Проверены native HTTP, прямой запрос и резервный Reader.'
+                        'Ошибка загрузки HTML сезона. ' +
+                        'На Android TV рекомендуется официальный Lampa Android-клиент: ' +
+                        'его native HTTP обычно работает стабильнее browser CORS.'
                     );
                 }
             );
@@ -706,10 +794,13 @@
         this.start = function () {
             Lampa.Controller.add('content', {
                 toggle: function () {
-                    Lampa.Controller.collectionSet(scroll.render());
+                    Lampa.Controller.collectionSet(scroll.render(), list);
                     Lampa.Controller.collectionFocus(last || false, scroll.render());
+
                     if (last) {
-                        try { scroll.update($(last), true); } catch (scrollError) {}
+                        try {
+                            scroll.update($(last), true);
+                        } catch (scrollError) {}
                     }
                 },
                 up: function () {
@@ -743,6 +834,11 @@
 
         this.destroy = function () {
             if (descriptionTimer) clearTimeout(descriptionTimer);
+            if (wheelTimer) clearTimeout(wheelTimer);
+
+            try {
+                scroll.render().off('.kkwheel');
+            } catch (wheelError) {}
 
             try {
                 if (network && network.clear) network.clear();
@@ -788,9 +884,9 @@
             if (Lampa.Manifest && Lampa.Manifest.plugins) {
                 Lampa.Manifest.plugins[PLUGIN_ID] = {
                     type: 'other',
-                    version: '0.6.0',
+                    version: '0.7.0',
                     name: TITLE,
-                    description: 'kill-kenny.com: сезоны → серии → описания → HLS; TV scroll + CORS fallback'
+                    description: 'kill-kenny.com: сезоны → серии → описания → HLS; mouse/trackpad + TV scroll'
                 };
             }
         } catch (e) {}
