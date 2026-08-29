@@ -1,14 +1,14 @@
 /*
  * Kill Kenny Catalog for Lampa
- * v0.7.0
+ * v0.8.0
  *
  * Назначение:
  *  - читает каталог kill-kenny.com
  *  - строит навигацию Сезоны -> Серии
- *  - при выборе серии открывает ОРИГИНАЛЬНУЮ страницу серии на kill-kenny.com
- *    в WebView/браузере ТВ, где работает собственный плеер сайта
+ *  - каталог и описания получает со страниц kill-kenny.com
+ *  - навигация и скролл используют штатные механизмы Lampa
  *
- * Внутренние media URL / iframe token / m3u8 этот плагин не извлекает.
+ * Прямые HLS-правила здесь сохранены только для уже известных конфигураций.
  */
 (function () {
     'use strict';
@@ -18,6 +18,7 @@
     var BASE = 'https://kill-kenny.com';
     var HOME = BASE + '/';
     var TITLE = 'Южный Парк — Kill Kenny';
+    var READER_BASE = 'https://r.jina.ai/';
 
     // Прямые HLS-шаблоны. Добавляйте сюда только известные вам разрешённые потоки.
     // Пример, который был предоставлен пользователем:
@@ -43,14 +44,14 @@
         '</svg>';
 
     var CSS = [
-        '.kk-root{padding:1.4em 2em 8em;min-height:100%}',
+        '.kk-root{padding:1.4em 2em 6em;min-height:100%}',
         '.kk-title{font-size:2em;font-weight:700;margin-bottom:.8em}',
         '.kk-subtitle{opacity:.6;margin:-.4em 0 1.1em}',
         '.kk-details{display:none;max-width:78em;margin:0 0 1.1em;padding:1em 1.15em;border-radius:.8em;background:rgba(255,255,255,.055)}',
         '.kk-details.active{display:block}',
         '.kk-details__title{font-size:1.12em;font-weight:650;margin-bottom:.45em}',
         '.kk-details__text{font-size:1em;line-height:1.42;opacity:.78;white-space:normal}',
-        '.kk-list{display:flex;flex-direction:column;gap:.6em;max-width:78em;padding-bottom:3em}',
+        '.kk-list{display:flex;flex-direction:column;gap:.6em;max-width:78em;padding-bottom:4em}',
         '.kk-card{display:flex;align-items:center;gap:1em;padding:1em 1.15em;border-radius:.8em;background:rgba(255,255,255,.07);cursor:pointer}',
         '.kk-card.focus{background:rgba(255,255,255,.18);transform:scale(1.008)}',
         '.kk-badge{display:flex;align-items:center;justify-content:center;flex:0 0 4.5em;height:3.1em;border-radius:.65em;background:rgba(255,255,255,.11);font-weight:700}',
@@ -58,7 +59,9 @@
         '.kk-name{font-size:1.16em;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
         '.kk-meta{opacity:.55;margin-top:.22em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
         '.kk-message{padding:1.2em;border-radius:.8em;background:rgba(255,255,255,.06);opacity:.78}',
-        '.kk-hint{margin-top:1em;opacity:.45;font-size:.9em}'
+        '.kk-hint{margin-top:1em;opacity:.45;font-size:.9em}',
+        '.kk-scroll-desktop{overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;scrollbar-width:none}',
+        '.kk-scroll-desktop::-webkit-scrollbar{width:0;height:0}'
     ].join('');
 
     function injectStyle() {
@@ -93,66 +96,145 @@
     }
 
     function requestHTML(url, done, fail) {
-        var net = new Lampa.Reguest();
+        var primary = new Lampa.Reguest();
         var finished = false;
 
-        function ok(data) {
-            if (finished) return;
-            finished = true;
-            done(String(data || ''));
+        function textOf(data) {
+            try {
+                if (typeof data === 'string') return data;
+                if (data && typeof data.responseText === 'string') return data.responseText;
+                return String(data || '');
+            } catch (e) {
+                return '';
+            }
         }
 
-        function bad(err) {
-            if (finished) return;
+        function accept(data, source) {
+            if (finished) return true;
+
+            var text = textOf(data);
+
+            if (!text || text.length < 30) return false;
+
             finished = true;
-            fail(err || 'network error');
+            done(text, source || 'direct');
+            return true;
         }
 
-        try {
-            if (net.timeout) net.timeout(18000);
+        function giveUp(error) {
+            if (finished) return;
+            finished = true;
+            fail(error || 'network error');
+        }
 
-            // На Android TV / части сборок Lampa native-запрос умеет обходить browser CORS.
-            if (typeof net.native === 'function') {
-                net.native(url, ok, function () {
-                    // fallback на silent
-                    try {
-                        net.silent(
-                            url,
-                            ok,
-                            bad,
-                            false,
-                            {
-                                dataType: 'text',
-                                headers: {
-                                    'Accept': 'text/html,application/xhtml+xml',
-                                    'Cache-Control': 'no-cache'
-                                }
-                            }
-                        );
-                    } catch (e2) {
-                        bad(e2);
+        function fetchReader(readerUrl, next) {
+            var reader = new Lampa.Reguest();
+
+            function useFetchFallback() {
+                if (finished) return;
+
+                if (typeof fetch !== 'function') {
+                    next();
+                    return;
+                }
+
+                fetch(readerUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-store',
+                    headers: {
+                        'Accept': 'text/plain,text/markdown;q=0.9,*/*;q=0.8'
                     }
-                });
-            } else {
-                net.silent(
-                    url,
-                    ok,
-                    bad,
+                })
+                .then(function (response) {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.text();
+                })
+                .then(function (text) {
+                    if (!accept(text, 'reader')) next();
+                })
+                .catch(next);
+            }
+
+            try {
+                if (reader.timeout) reader.timeout(20000);
+
+                reader.silent(
+                    readerUrl,
+                    function (data) {
+                        if (!accept(data, 'reader')) useFetchFallback();
+                    },
+                    useFetchFallback,
                     false,
                     {
                         dataType: 'text',
                         headers: {
-                            'Accept': 'text/html,application/xhtml+xml',
+                            'Accept': 'text/plain,text/markdown;q=0.9,*/*;q=0.8',
                             'Cache-Control': 'no-cache'
                         }
                     }
                 );
+            } catch (e) {
+                useFetchFallback();
             }
-        } catch (e) {
-            bad(e);
         }
 
-        return net;
+        function readerFallback() {
+            if (finished) return;
+
+            var secure = READER_BASE + url;
+            var insecureTarget = READER_BASE + url.replace(/^https:\/\//i, 'http://');
+
+            fetchReader(secure, function () {
+                fetchReader(insecureTarget, function () {
+                    giveUp('reader unavailable');
+                });
+            });
+        }
+
+        function directFallback() {
+            if (finished) return;
+
+            try {
+                primary.silent(
+                    url,
+                    function (data) {
+                        if (!accept(data, 'direct')) readerFallback();
+                    },
+                    readerFallback,
+                    false,
+                    {
+                        dataType: 'text',
+                        headers: {
+                            'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.8',
+                            'Cache-Control': 'no-cache'
+                        }
+                    }
+                );
+            } catch (e) {
+                readerFallback();
+            }
+        }
+
+        try {
+            if (primary.timeout) primary.timeout(18000);
+
+            if (typeof primary.native === 'function') {
+                primary.native(
+                    url,
+                    function (data) {
+                        if (!accept(data, 'native')) directFallback();
+                    },
+                    directFallback
+                );
+            } else {
+                directFallback();
+            }
+        } catch (e) {
+            directFallback();
+        }
+
+        return primary;
     }
 
     function parseSeasons(html) {
@@ -184,62 +266,92 @@
         return result;
     }
 
-    function parseEpisodeLink(a, expectedSeason) {
-        var href = a.getAttribute('href') || '';
+    function parseEpisodeData(text, href, expectedSeason) {
+        href = String(href || '');
+        text = normalizeText(text || '');
+
         if (!/sezon/i.test(href) || !/ser(?:ija|iya)/i.test(href)) return null;
 
-        var text = normalizeText(
-            a.getAttribute('title') ||
-            a.textContent ||
-            ''
-        );
-
-        // 16 сезон 1 серия: Перевёрнутая наездница
         var byText = text.match(/(\d+)\s*сезон\s*(\d+)\s*сер(?:ия|ии)\s*[:\-–—]?\s*(.*)$/i);
 
-        // 188-16-sezon-1-serija-perevernutaja-naezdnica.html
-        var byUrl = href.match(/(?:^|\/)(?:\d+-)?(\d+)-sezon-(\d+)-ser(?:ija|iya)(?:-|\.|\/)/i);
+        var byUrl = href.match(
+            /(?:^|\/)(?:\d+-)?(\d+)-sezon-(\d+)-ser(?:ija|iya)(?:-|\.|\/)/i
+        );
 
-        var season = byText ? parseInt(byText[1], 10) : (byUrl ? parseInt(byUrl[1], 10) : 0);
-        var episode = byText ? parseInt(byText[2], 10) : (byUrl ? parseInt(byUrl[2], 10) : 0);
+        var season = byText
+            ? parseInt(byText[1], 10)
+            : (byUrl ? parseInt(byUrl[1], 10) : 0);
+
+        var episode = byText
+            ? parseInt(byText[2], 10)
+            : (byUrl ? parseInt(byUrl[2], 10) : 0);
 
         if (!episode) return null;
         if (expectedSeason && season && season !== expectedSeason) return null;
-
         if (!season) season = expectedSeason || 0;
 
-        var name = '';
+        var name = byText && byText[3]
+            ? normalizeText(byText[3])
+            : text;
 
-        if (byText && byText[3]) {
-            name = normalizeText(byText[3]);
-        } else {
-            name = text;
+        name = name
+            .replace(/^\d+\s*сезон\s*\d+\s*сер(?:ия|ии)\s*[:\-–—]?\s*/i, '')
+            .replace(/^#+\s*/, '')
+            .trim();
+
+        if (!name || /^https?:\/\//i.test(name)) {
+            name = episode + ' серия';
         }
-
-        // Если текст ссылки содержит целиком "16 сезон 1 серия: ..."
-        // оставляем только название.
-        name = name.replace(/^\d+\s*сезон\s*\d+\s*сер(?:ия|ии)\s*[:\-–—]?\s*/i, '').trim();
 
         return {
             kind: 'episode',
             season: season,
             episode: episode,
-            name: name || (episode + ' серия'),
-            title: episode + ' серия' + (name ? ': ' + name : ''),
+            name: name,
+            title: episode + ' серия' + (name && name !== episode + ' серия' ? ': ' + name : ''),
             url: abs(href)
         };
     }
 
+    function parseEpisodeLink(a, expectedSeason) {
+        return parseEpisodeData(
+            a.getAttribute('title') || a.textContent || '',
+            a.getAttribute('href') || '',
+            expectedSeason
+        );
+    }
+
     function parseEpisodes(html, expectedSeason) {
-        var doc = parseHTML(html);
+        var source = String(html || '');
         var result = [];
 
-        Array.prototype.forEach.call(doc.querySelectorAll('a[href]'), function (a) {
-            var item = parseEpisodeLink(a, expectedSeason);
-            if (item) result.push(item);
-        });
+        try {
+            var doc = parseHTML(source);
 
-        // Убираем дубли из навигации / комментариев.
+            Array.prototype.forEach.call(doc.querySelectorAll('a[href]'), function (a) {
+                var item = parseEpisodeLink(a, expectedSeason);
+                if (item) result.push(item);
+            });
+        } catch (e) {}
+
+        var markdownLink = /\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/g;
+        var match;
+
+        while ((match = markdownLink.exec(source)) !== null) {
+            var mdItem = parseEpisodeData(match[1], match[2], expectedSeason);
+            if (mdItem) result.push(mdItem);
+        }
+
+        var plainUrl = /(https?:\/\/kill-kenny\.com\/[^\s"'<>]+(?:sezon|season)[^\s"'<>]*ser(?:ija|iya)[^\s"'<>]*)/gi;
+
+        while ((match = plainUrl.exec(source)) !== null) {
+            var href = match[1].replace(/[),.;]+$/, '');
+            var aroundStart = Math.max(0, match.index - 160);
+            var around = source.slice(aroundStart, match.index + match[0].length + 80);
+            var plainItem = parseEpisodeData(around, href, expectedSeason);
+            if (plainItem) result.push(plainItem);
+        }
+
         result = uniq(result, function (x) {
             return x.season + ':' + x.episode;
         });
@@ -286,8 +398,58 @@
         return parts.slice(0, 4).join(' ');
     }
 
+    function stripMarkdown(text) {
+        return normalizeText(
+            String(text || '')
+                .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                .replace(/[`*_>#~|]/g, ' ')
+                .replace(/\s+/g, ' ')
+        );
+    }
+
+    function parseReaderDescription(text) {
+        var source = String(text || '');
+
+        source = source
+            .replace(/^Title:.*$/gmi, '')
+            .replace(/^URL Source:.*$/gmi, '')
+            .replace(/^Published Time:.*$/gmi, '')
+            .replace(/^Markdown Content:.*$/gmi, '');
+
+        var blocks = source.split(/\n\s*\n+/);
+        var good = [];
+
+        for (var i = 0; i < blocks.length; i++) {
+            var value = stripMarkdown(blocks[i]);
+
+            if (value.length < 55 || value.length > 1800) continue;
+
+            if (
+                /^(южный парк|south park|\d+\s*сезон|смотреть|плеер|комментарии|оценить|поделиться|навигация|главная|сезоны)/i.test(value)
+            ) {
+                continue;
+            }
+
+            if (/cookie|javascript|privacy policy/i.test(value)) continue;
+
+            good.push(value);
+
+            if (good.length >= 3) break;
+        }
+
+        return good.join(' ');
+    }
+
     function parseEpisodeDescription(html) {
-        var doc = parseHTML(html);
+        var source = String(html || '');
+
+        if (!/<(?:html|body|article|div|p|main|section)\b/i.test(source)) {
+            var readerText = parseReaderDescription(source);
+            if (readerText) return readerText;
+        }
+
+        var doc = parseHTML(source);
         var selectors = [
             '[itemprop="description"]',
             '.episode-description',
@@ -401,12 +563,12 @@
 
     function seasonUrl(number) {
         number = parseInt(number, 10) || 0;
-        return BASE + '/season-' + (number < 10 ? ('0' + number) : String(number)) + '/';
+        var slug = number < 10 ? ('0' + number) : String(number);
+        return BASE + '/season-' + slug + '/';
     }
 
     function fallbackSeasons() {
         var list = [];
-
         for (var i = 1; i <= 28; i++) {
             list.push({
                 kind: 'season',
@@ -415,7 +577,6 @@
                 url: seasonUrl(i)
             });
         }
-
         return list;
     }
 
@@ -469,13 +630,10 @@
         var self = this;
         var network = null;
         var last = null;
-        var wheelAccumulator = 0;
-        var wheelTimer = null;
 
         var scroll = new Lampa.Scroll({
             mask: true,
-            over: true,
-            step: 240
+            step: 180
         });
 
         var root = $('<div class="kk-root"></div>');
@@ -496,6 +654,27 @@
         root.append(list);
         root.append(hint);
         scroll.append(root);
+
+        function setupScrollViewport() {
+            var viewport = scroll.render();
+            var isTv = false;
+
+            try {
+                isTv = !!(Lampa.Platform && Lampa.Platform.screen && Lampa.Platform.screen('tv'));
+            } catch (e) {}
+
+            if (!isTv) {
+                viewport.addClass('kk-scroll-desktop');
+                viewport.css({
+                    'height': '100%',
+                    'max-height': '100vh',
+                    'overflow-y': 'auto',
+                    'overflow-x': 'hidden'
+                });
+            }
+        }
+
+        setupScrollViewport();
 
         function message(text) {
             list.empty().append(
@@ -550,85 +729,6 @@
             }, 280);
         }
 
-        function setFocus(target) {
-            if (!target || !target.length) return;
-
-            last = target[0];
-
-            try {
-                Lampa.Controller.collectionFocus(last, scroll.render());
-            } catch (e) {
-                list.find('.selector.focus').removeClass('focus');
-                target.addClass('focus');
-
-                try {
-                    target.trigger('hover:focus');
-                } catch (triggerError) {}
-            }
-
-            try {
-                scroll.update(target, true);
-            } catch (scrollError) {}
-        }
-
-        function wheelMove(event) {
-            var original = event.originalEvent || event;
-            var delta = Number(original.deltaY || 0);
-
-            if (!delta && original.wheelDelta) {
-                delta = -Number(original.wheelDelta);
-            }
-
-            if (!delta && original.detail) {
-                delta = Number(original.detail) * 40;
-            }
-
-            if (!delta) return;
-
-            if (event.preventDefault) event.preventDefault();
-            if (event.stopPropagation) event.stopPropagation();
-
-            wheelAccumulator += delta;
-
-            if (wheelTimer) clearTimeout(wheelTimer);
-
-            wheelTimer = setTimeout(function () {
-                wheelAccumulator = 0;
-            }, 160);
-
-            if (Math.abs(wheelAccumulator) < 28) return;
-
-            var direction = wheelAccumulator > 0 ? 1 : -1;
-            wheelAccumulator = 0;
-
-            var selectors = list.find('.selector:visible');
-            if (!selectors.length) return;
-
-            var current = last ? selectors.index(last) : -1;
-
-            if (current < 0) {
-                var focused = selectors.filter('.focus').first();
-                current = focused.length ? selectors.index(focused[0]) : 0;
-            }
-
-            var next = current + direction;
-
-            if (next < 0) next = 0;
-            if (next >= selectors.length) next = selectors.length - 1;
-
-            setFocus(selectors.eq(next));
-        }
-
-        function bindDesktopScroll() {
-            var viewport = scroll.render();
-
-            viewport.off('.kkwheel');
-            viewport.on(
-                'wheel.kkwheel mousewheel.kkwheel DOMMouseScroll.kkwheel',
-                wheelMove
-            );
-        }
-
         function card(item) {
             var el = $(
                 '<div class="kk-card selector">' +
@@ -654,8 +754,8 @@
                     : ('Сезон ' + item.season + ' • прямой HLS → Lampa Player')
             );
 
-            el.on('hover:focus', function (e) {
-                last = (e && e.target) ? e.target : el[0];
+            function focused(e) {
+                last = e && e.target ? e.target : el[0];
 
                 try {
                     scroll.update($(last), true);
@@ -663,18 +763,10 @@
 
                 if (item.kind === 'episode') showEpisodeDetails(item);
                 else hideDetails();
-            });
+            }
 
-            el.on('mouseenter', function () {
-                setFocus(el);
-
-                if (item.kind === 'episode') showEpisodeDetails(item);
-                else hideDetails();
-            });
-
-            el.on('click', function () {
-                el.trigger('hover:enter');
-            });
+            el.on('hover:focus', focused);
+            el.on('hover:hover', focused);
 
             el.on('hover:enter', function () {
                 if (item.kind === 'season') {
@@ -706,44 +798,17 @@
             });
 
             last = list.find('.selector').eq(0)[0] || null;
-            bindDesktopScroll();
 
             setTimeout(function () {
                 self.start();
-
-                if (last) {
-                    try {
-                        setFocus($(last));
-                    } catch (e) {}
-                }
             }, 50);
         }
 
         function loadSeasons() {
             title.text('Южный Парк');
-            subtitle.text('Сезоны с kill-kenny.com');
+            subtitle.text('Сезоны 1–28');
             hideDetails();
-            message('Загрузка сезонов…');
-
-            network = requestHTML(
-                HOME,
-                function (html) {
-                    var seasons = parseSeasons(html);
-
-                    if (!seasons.length) {
-                        draw(fallbackSeasons());
-                        Lampa.Noty.show('Использован резервный список сезонов 1–28');
-                        return;
-                    }
-
-                    draw(seasons);
-                },
-                function () {
-                    // Даже при проблемах с CORS пользователь всё равно увидит сезоны.
-                    draw(fallbackSeasons());
-                    Lampa.Noty.show('HTML главной не загрузился — показан резервный список 1–28');
-                }
-            );
+            draw(fallbackSeasons());
         }
 
         function loadEpisodes() {
@@ -756,25 +821,26 @@
 
             network = requestHTML(
                 url,
-                function (html) {
+                function (html, sourceType) {
                     var episodes = parseEpisodes(html, season);
 
                     if (!episodes.length) {
                         message(
-                            'Список серий получить не удалось. ' +
-                            'Нажмите Назад и попробуйте снова. ' +
-                            'На некоторых ТВ cross-origin HTML требует Android-клиент Lampa с native HTTP.'
+                            'Страница сезона загрузилась, но ссылки на серии в текущей разметке не распознаны.'
                         );
                         return;
                     }
+
+                    subtitle.text(
+                        'Серии с kill-kenny.com • описание при выборе' +
+                        (sourceType === 'reader' ? ' • metadata fallback' : '')
+                    );
 
                     draw(episodes);
                 },
                 function () {
                     message(
-                        'Ошибка загрузки HTML сезона. ' +
-                        'На Android TV рекомендуется официальный Lampa Android-клиент: ' +
-                        'его native HTTP обычно работает стабильнее browser CORS.'
+                        'Каталог этого сезона сейчас недоступен: direct/native и metadata fallback не ответили.'
                     );
                 }
             );
@@ -794,8 +860,12 @@
         this.start = function () {
             Lampa.Controller.add('content', {
                 toggle: function () {
-                    Lampa.Controller.collectionSet(scroll.render(), list);
+                    Lampa.Controller.collectionSet(scroll.render());
                     Lampa.Controller.collectionFocus(last || false, scroll.render());
+
+                    try {
+                        scroll.restorePosition();
+                    } catch (restoreError) {}
 
                     if (last) {
                         try {
@@ -834,11 +904,6 @@
 
         this.destroy = function () {
             if (descriptionTimer) clearTimeout(descriptionTimer);
-            if (wheelTimer) clearTimeout(wheelTimer);
-
-            try {
-                scroll.render().off('.kkwheel');
-            } catch (wheelError) {}
 
             try {
                 if (network && network.clear) network.clear();
@@ -884,9 +949,9 @@
             if (Lampa.Manifest && Lampa.Manifest.plugins) {
                 Lampa.Manifest.plugins[PLUGIN_ID] = {
                     type: 'other',
-                    version: '0.7.0',
+                    version: '0.8.0',
                     name: TITLE,
-                    description: 'kill-kenny.com: сезоны → серии → описания → HLS; mouse/trackpad + TV scroll'
+                    description: 'kill-kenny.com: каталог + описания; штатный Lampa.Scroll + metadata fallback'
                 };
             }
         } catch (e) {}
