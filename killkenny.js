@@ -1,6 +1,6 @@
 /*
  * South Park / Kill Kenny catalog for Lampa 3.x
- * v1.2.0
+ * v1.3.0
  *
  * Architecture:
  *   Lampa.Maker native UI -> catalog.json on GitHub Pages
@@ -13,7 +13,7 @@
 
     var PLUGIN_ID = 'sp_killkenny_v1';
     var COMPONENT = 'sp_killkenny_native';
-    var VERSION = '1.2.0';
+    var VERSION = '1.3.0';
     var TITLE = 'Южный Парк';
 
     var SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
@@ -31,14 +31,40 @@
      * Add only verified season rules here.
      */
     var STREAM_RULES = {
-        10: {
-            base: 'https://cdn.videozcdn.uk/video/killkenny/s10-mtv/',
-            suffix: '.mp4/index.m3u8'
-        },
-        16: {
-            base: 'https://cdn.videozcdn.uk/video/killkenny/s16-paramount/',
-            suffix: '.mp4/index.m3u8'
-        }
+        1:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s1-mtv/',        suffix: '.mp4/index.m3u8' }],
+        2:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s2-mtv/',        suffix: '.mp4/index.m3u8' }],
+        3:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s3-mtv/',        suffix: '.mp4/index.m3u8' }],
+        4:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s4-mtv/',        suffix: '.mp4/index.m3u8' }],
+        5:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s5-mtv/',        suffix: '.mp4/index.m3u8' }],
+        6:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s6-mtv/',        suffix: '.mp4/index.m3u8' }],
+        7:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s7-mtv/',        suffix: '.mp4/index.m3u8' }],
+        8:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s8-mtv/',        suffix: '.mp4/index.m3u8' }],
+        9:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s9-mtv/',        suffix: '.mp4/index.m3u8' }],
+        10: [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s10-mtv/',       suffix: '.mp4/index.m3u8' }],
+        11: [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s11-mtv/',       suffix: '.mp4/index.m3u8' }],
+        12: [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s12-mtv/',       suffix: '.mp4/index.m3u8' }],
+        13: [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s13-mtv/',       suffix: '.mp4/index.m3u8' }],
+
+        14: [
+            { id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s14-mtv/',       suffix: '.mp4/index.m3u8' },
+            { id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s14-paramount/', suffix: '.mp4/index.m3u8' }
+        ],
+
+        15: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s15-paramount/', suffix: '.mp4/index.m3u8' }],
+        16: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s16-paramount/', suffix: '.mp4/index.m3u8' }],
+        17: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s17-paramount/', suffix: '.mp4/index.m3u8' }],
+        18: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s18-paramount/', suffix: '.mp4/index.m3u8' }],
+        19: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s19-paramount/', suffix: '.mp4/index.m3u8' }],
+        20: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s20-paramount/', suffix: '.mp4/index.m3u8' }],
+        21: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s21-paramount/', suffix: '.mp4/index.m3u8' }],
+        22: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s22-paramount/', suffix: '.mp4/index.m3u8' }],
+        23: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s23-paramount/', suffix: '.mp4/index.m3u8' }],
+        24: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s24-paramount/', suffix: '.mp4/index.m3u8' }],
+
+        25: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/spark/s25-paramount/', suffix: '.mp4/index.m3u8' }],
+        26: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/spark/s26-paramount/', suffix: '.mp4/index.m3u8' }],
+        27: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/spark/s27-paramount/', suffix: '.mp4/index.m3u8' }],
+        28: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/spark/s28-paramount/', suffix: '.mp4/index.m3u8' }]
     };
 
     var catalogCache = null;
@@ -62,8 +88,26 @@
         return value < 10 ? ('0' + value) : String(value);
     }
 
-    function streamUrl(season, episode) {
-        var rule = STREAM_RULES[parseInt(season, 10)];
+    function streamSources(season) {
+        return STREAM_RULES[parseInt(season, 10)] || [];
+    }
+
+    function streamRule(season, sourceId) {
+        var sources = streamSources(season);
+
+        if (!sources.length) return null;
+
+        if (sourceId) {
+            for (var i = 0; i < sources.length; i++) {
+                if (sources[i].id === sourceId) return sources[i];
+            }
+        }
+
+        return sources[0];
+    }
+
+    function streamUrl(season, episode, sourceId) {
+        var rule = streamRule(season, sourceId);
 
         if (!rule) return '';
 
@@ -238,7 +282,7 @@
     }
 
     function episodeCard(episode) {
-        var playable = !!streamUrl(episode.season, episode.episode);
+        var playable = streamSources(episode.season).length > 0;
 
         var cardData = {
             title: episode.title || (episode.episode + ' серия'),
@@ -301,10 +345,11 @@
         return $(html);
     }
 
-    function playEpisode(episode) {
-        var url = streamUrl(episode.season, episode.episode);
+    function playEpisode(episode, sourceId) {
+        var rule = streamRule(episode.season, sourceId);
+        var url = streamUrl(episode.season, episode.episode, sourceId);
 
-        if (!url) {
+        if (!rule || !url) {
             Lampa.Noty.show(
                 'Для ' + episode.season + ' сезона поток пока не настроен'
             );
@@ -316,7 +361,7 @@
 
         if (season && season.episodes) {
             season.episodes.forEach(function (item) {
-                var itemUrl = streamUrl(item.season, item.episode);
+                var itemUrl = streamUrl(item.season, item.episode, rule.id);
 
                 if (itemUrl) {
                     all.push({
@@ -342,7 +387,8 @@
             Lampa.Storage.set('kkv1_last', {
                 season: episode.season,
                 episode: episode.episode,
-                title: current.title
+                title: current.title,
+                source: rule.id
             });
         } catch (e) {}
 
@@ -351,7 +397,7 @@
     }
 
     function showEpisodeInfo(episode, controller) {
-        var stream = streamUrl(episode.season, episode.episode);
+        var stream = streamSources(episode.season).length ? streamUrl(episode.season, episode.episode) : '';
 
         Lampa.Modal.open({
             title: episode.title || (episode.episode + ' серия'),
@@ -369,7 +415,7 @@
 
     function openEpisodeActions(episode) {
         var controller = '';
-        var stream = streamUrl(episode.season, episode.episode);
+        var sources = streamSources(episode.season);
         var items = [];
 
         try {
@@ -378,10 +424,19 @@
             controller = 'content';
         }
 
-        if (stream) {
+        if (sources.length === 1) {
             items.push({
-                title: '▶ Смотреть',
-                action: 'play'
+                title: '▶ Смотреть' + (sources[0].label ? ' • ' + sources[0].label : ''),
+                action: 'play',
+                source: sources[0].id
+            });
+        } else if (sources.length > 1) {
+            sources.forEach(function (source) {
+                items.push({
+                    title: '▶ Смотреть • ' + (source.label || source.id),
+                    action: 'play',
+                    source: source.id
+                });
             });
         } else {
             items.push({
@@ -406,7 +461,7 @@
                     Lampa.Select.close();
 
                     setTimeout(function () {
-                        playEpisode(episode);
+                        playEpisode(episode, item.source);
                     }, 120);
 
                     return;
@@ -609,7 +664,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'Native Lampa.Maker UI + fixed action menu + GitHub catalog.json'
+                    description: 'Native Lampa.Maker UI + HLS seasons 1–28 + GitHub catalog.json'
                 };
             }
         } catch (e) {}
