@@ -1,6 +1,6 @@
 /*
  * South Park / Kill Kenny catalog for Lampa 3.x
- * v1.0.0
+ * v1.1.0
  *
  * Architecture:
  *   Lampa.Maker native UI -> catalog.json on GitHub Pages
@@ -13,7 +13,7 @@
 
     var PLUGIN_ID = 'sp_killkenny_v1';
     var COMPONENT = 'sp_killkenny_native';
-    var VERSION = '1.0.0';
+    var VERSION = '1.1.0';
     var TITLE = 'Южный Парк';
 
     var SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
@@ -208,40 +208,66 @@
     function seasonCard(seasonData) {
         var season = parseInt(seasonData.season, 10);
         var count = (seasonData.episodes || []).length;
-
-        return {
+        var cardData = {
             title: season + ' сезон',
             name: season + ' сезон',
-            original_name: count ? (count + ' серий') : 'Список серий',
+            original_name: count ? (count + ' серий • OK — открыть') : 'OK — открыть сезон',
             overview: count
                 ? ('Сезон ' + season + ' • ' + count + ' серий')
                 : ('Сезон ' + season),
             img: firstPoster(seasonData),
             kk_type: 'season',
-            kk_season: season,
-            params: {
-                style: {
-                    name: 'wide'
+            kk_season: season
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    pushSeason(season);
                 }
             }
         };
+
+        return cardData;
     }
 
     function episodeCard(episode) {
-        return {
+        var playable = !!streamUrl(episode.season, episode.episode);
+
+        var cardData = {
             title: episode.title || (episode.episode + ' серия'),
             name: episode.title || (episode.episode + ' серия'),
-            original_name: 'Сезон ' + episode.season + ' • Серия ' + episode.episode,
+            original_name:
+                'Сезон ' + episode.season +
+                ' • Серия ' + episode.episode +
+                (playable ? ' • ▶ OK — смотреть' : ' • OK — действия'),
             overview: episode.description || '',
             img: episode.poster || '',
             kk_type: 'episode',
-            kk_episode: episode,
-            params: {
-                style: {
-                    name: 'wide'
+            kk_episode: episode
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    openEpisodeActions(episode);
                 }
             }
         };
+
+        return cardData;
     }
 
     function escapeHtml(value) {
@@ -324,9 +350,27 @@
         Lampa.Player.playlist(all.length ? all : [current]);
     }
 
-    function openEpisode(episode) {
+    function showEpisodeInfo(episode, controller) {
         var stream = streamUrl(episode.season, episode.episode);
+
+        Lampa.Modal.open({
+            title: episode.title || (episode.episode + ' серия'),
+            html: modalHtml(episode, stream),
+            size: 'medium',
+            onBack: function () {
+                Lampa.Modal.close();
+
+                if (controller) {
+                    Lampa.Controller.toggle(controller);
+                }
+            }
+        });
+    }
+
+    function openEpisodeActions(episode) {
         var controller = '';
+        var stream = streamUrl(episode.season, episode.episode);
+        var items = [];
 
         try {
             controller = Lampa.Controller.enabled().name;
@@ -334,34 +378,63 @@
             controller = 'content';
         }
 
-        var buttons = [];
-
         if (stream) {
-            buttons.push({
-                name: 'Смотреть',
-                onSelect: function () {
-                    Lampa.Modal.close();
-                    playEpisode(episode);
-                }
+            items.push({
+                title: '▶ Смотреть',
+                action: 'play'
+            });
+        } else {
+            items.push({
+                title: 'Поток для ' + episode.season + ' сезона пока не настроен',
+                action: 'missing'
             });
         }
 
-        buttons.push({
-            name: stream ? 'Закрыть' : 'Ок',
-            onSelect: function () {
-                Lampa.Modal.close();
-                Lampa.Controller.toggle(controller);
-            }
+        items.push({
+            title: 'О серии',
+            action: 'info'
         });
 
-        Lampa.Modal.open({
+        Lampa.Select.show({
             title: episode.title || (episode.episode + ' серия'),
-            html: modalHtml(episode, stream),
-            size: 'medium',
-            buttons: buttons,
+            items: items,
+
+            onSelect: function (item) {
+                if (!item) return;
+
+                if (item.action === 'play') {
+                    Lampa.Select.close();
+
+                    setTimeout(function () {
+                        playEpisode(episode);
+                    }, 60);
+
+                    return;
+                }
+
+                if (item.action === 'info') {
+                    Lampa.Select.close();
+
+                    setTimeout(function () {
+                        showEpisodeInfo(episode, controller);
+                    }, 60);
+
+                    return;
+                }
+
+                if (item.action === 'missing') {
+                    Lampa.Noty.show(
+                        'Для ' + episode.season + ' сезона HLS пока не добавлен'
+                    );
+                }
+            },
+
             onBack: function () {
-                Lampa.Modal.close();
-                Lampa.Controller.toggle(controller);
+                Lampa.Select.close();
+
+                if (controller) {
+                    Lampa.Controller.toggle(controller);
+                }
             }
         });
     }
@@ -382,28 +455,6 @@
         try {
             Lampa.Background.change(data.img);
         } catch (e) {}
-    }
-
-    function attachItemHandlers(line) {
-        line.use({
-            onInstance: function (card, data) {
-                card.use({
-                    onFocus: function () {
-                        updateBackground(data);
-                    },
-                    onlyEnter: function () {
-                        if (data.kk_type === 'season') {
-                            pushSeason(data.kk_season);
-                            return;
-                        }
-
-                        if (data.kk_type === 'episode' && data.kk_episode) {
-                            openEpisode(data.kk_episode);
-                        }
-                    }
-                });
-            }
-        });
     }
 
     function buildSeasonLines(catalog) {
@@ -513,12 +564,7 @@
                         Lampa.Noty.show('catalog.json пока недоступен');
                     }
                 });
-            },
-
-            onInstance: function (line) {
-                attachItemHandlers(line);
-            }
-        });
+            }        });
 
         return comp;
     }
@@ -563,7 +609,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'Native Lampa.Maker UI + GitHub catalog.json'
+                    description: 'Native Lampa.Maker UI + action menu + GitHub catalog.json'
                 };
             }
         } catch (e) {}
