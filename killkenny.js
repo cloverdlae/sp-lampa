@@ -1,6 +1,6 @@
 /*
  * Kill Kenny Catalog for Lampa
- * v0.5.0
+ * v0.6.0
  *
  * Назначение:
  *  - читает каталог kill-kenny.com
@@ -18,6 +18,7 @@
     var BASE = 'https://kill-kenny.com';
     var HOME = BASE + '/';
     var TITLE = 'Южный Парк — Kill Kenny';
+    var READER_BASE = 'https://r.jina.ai/';
 
     // Прямые HLS-шаблоны. Добавляйте сюда только известные вам разрешённые потоки.
     // Пример, который был предоставлен пользователем:
@@ -43,14 +44,14 @@
         '</svg>';
 
     var CSS = [
-        '.kk-root{padding:1.4em 2em 4em}',
+        '.kk-root{padding:1.4em 2em 8em;min-height:100%}',
         '.kk-title{font-size:2em;font-weight:700;margin-bottom:.8em}',
         '.kk-subtitle{opacity:.6;margin:-.4em 0 1.1em}',
         '.kk-details{display:none;max-width:78em;margin:0 0 1.1em;padding:1em 1.15em;border-radius:.8em;background:rgba(255,255,255,.055)}',
         '.kk-details.active{display:block}',
         '.kk-details__title{font-size:1.12em;font-weight:650;margin-bottom:.45em}',
         '.kk-details__text{font-size:1em;line-height:1.42;opacity:.78;white-space:normal}',
-        '.kk-list{display:flex;flex-direction:column;gap:.6em;max-width:78em}',
+        '.kk-list{display:flex;flex-direction:column;gap:.6em;max-width:78em;padding-bottom:2em}',
         '.kk-card{display:flex;align-items:center;gap:1em;padding:1em 1.15em;border-radius:.8em;background:rgba(255,255,255,.07)}',
         '.kk-card.focus{background:rgba(255,255,255,.18);transform:scale(1.008)}',
         '.kk-badge{display:flex;align-items:center;justify-content:center;flex:0 0 4.5em;height:3.1em;border-radius:.65em;background:rgba(255,255,255,.11);font-weight:700}',
@@ -96,48 +97,50 @@
         var net = new Lampa.Reguest();
         var finished = false;
 
-        function ok(data) {
-            if (finished) return;
+        function complete(data) {
+            if (finished) return true;
+            var text = '';
+            try {
+                text = typeof data === 'string' ? data : (data && data.responseText ? data.responseText : String(data || ''));
+            } catch (e) { text = ''; }
+            if (!text || text.length < 20) return false;
             finished = true;
-            done(String(data || ''));
+            done(text);
+            return true;
         }
 
-        function bad(err) {
+        function failed(err) {
             if (finished) return;
             finished = true;
             fail(err || 'network error');
         }
 
-        try {
-            if (net.timeout) net.timeout(18000);
-
-            // На Android TV / части сборок Lampa native-запрос умеет обходить browser CORS.
-            if (typeof net.native === 'function') {
-                net.native(url, ok, function () {
-                    // fallback на silent
-                    try {
-                        net.silent(
-                            url,
-                            ok,
-                            bad,
-                            false,
-                            {
-                                dataType: 'text',
-                                headers: {
-                                    'Accept': 'text/html,application/xhtml+xml',
-                                    'Cache-Control': 'no-cache'
-                                }
-                            }
-                        );
-                    } catch (e2) {
-                        bad(e2);
+        function readerFallback() {
+            if (finished) return;
+            try {
+                net.silent(
+                    READER_BASE + url,
+                    function (data) { if (!complete(data)) failed('Reader returned empty response'); },
+                    failed,
+                    false,
+                    {
+                        dataType: 'text',
+                        headers: {
+                            'Accept': 'text/html,text/plain;q=0.9,*/*;q=0.8',
+                            'X-Respond-With': 'html'
+                        }
                     }
-                });
-            } else {
+                );
+            } catch (e) { failed(e); }
+        }
+
+        function directFallback() {
+            if (finished) return;
+            try {
                 net.silent(
                     url,
-                    ok,
-                    bad,
+                    function (data) { if (!complete(data)) readerFallback(); },
+                    readerFallback,
                     false,
                     {
                         dataType: 'text',
@@ -147,10 +150,19 @@
                         }
                     }
                 );
-            }
-        } catch (e) {
-            bad(e);
+            } catch (e) { readerFallback(); }
         }
+
+        try {
+            if (net.timeout) net.timeout(18000);
+            if (typeof net.native === 'function') {
+                net.native(url, function (data) {
+                    if (!complete(data)) directFallback();
+                }, directFallback);
+            } else {
+                directFallback();
+            }
+        } catch (e) { directFallback(); }
 
         return net;
     }
@@ -399,15 +411,20 @@
         );
     }
 
+    function seasonUrl(number) {
+        number = parseInt(number, 10) || 0;
+        var slug = number < 10 ? ('0' + number) : String(number);
+        return BASE + '/season-' + slug + '/';
+    }
+
     function fallbackSeasons() {
-        // На момент сборки сайт показывает сезоны 1–28.
         var list = [];
         for (var i = 1; i <= 28; i++) {
             list.push({
                 kind: 'season',
                 season: i,
                 title: i + ' сезон',
-                url: BASE + '/season-' + i + '/'
+                url: seasonUrl(i)
             });
         }
         return list;
@@ -462,6 +479,7 @@
     function CatalogComponent(object) {
         var self = this;
         var network = null;
+        var last = null;
 
         var scroll = new Lampa.Scroll({
             mask: true,
@@ -566,12 +584,16 @@
                     : ('Сезон ' + item.season + ' • прямой HLS → Lampa Player')
             );
 
-            el.on('hover:focus', function () {
+            el.on('hover:focus', function (e) {
+                last = e && e.target ? e.target : el[0];
+                try { scroll.update($(last), true); } catch (scrollError) {}
                 if (item.kind === 'episode') showEpisodeDetails(item);
                 else hideDetails();
             });
 
             el.on('mouseenter', function () {
+                last = el[0];
+                try { scroll.update(el, true); } catch (scrollError) {}
                 if (item.kind === 'episode') showEpisodeDetails(item);
             });
 
@@ -603,6 +625,8 @@
             items.forEach(function (item) {
                 list.append(card(item));
             });
+
+            last = list.find('.selector').eq(0)[0] || null;
 
             setTimeout(function () {
                 self.start();
@@ -638,7 +662,7 @@
 
         function loadEpisodes() {
             var season = parseInt(object.season, 10);
-            var url = object.seasonUrl || (BASE + '/season-' + season + '/');
+            var url = object.seasonUrl || seasonUrl(season);
 
             title.text(season + ' сезон');
             subtitle.text('Серии с kill-kenny.com • описание загружается при выборе');
@@ -662,9 +686,7 @@
                 },
                 function () {
                     message(
-                        'Ошибка загрузки HTML сезона. ' +
-                        'На Android TV рекомендуется официальный Lampa Android-клиент: ' +
-                        'его native HTTP обычно работает стабильнее browser CORS.'
+                        'Список серий получить не удалось. Проверены native HTTP, прямой запрос и резервный Reader.'
                     );
                 }
             );
@@ -684,8 +706,11 @@
         this.start = function () {
             Lampa.Controller.add('content', {
                 toggle: function () {
-                    Lampa.Controller.collectionSet(scroll.render(), list);
-                    Lampa.Controller.collectionFocus(false, scroll.render());
+                    Lampa.Controller.collectionSet(scroll.render());
+                    Lampa.Controller.collectionFocus(last || false, scroll.render());
+                    if (last) {
+                        try { scroll.update($(last), true); } catch (scrollError) {}
+                    }
                 },
                 up: function () {
                     if (Navigator.canmove('up')) Navigator.move('up');
@@ -763,9 +788,9 @@
             if (Lampa.Manifest && Lampa.Manifest.plugins) {
                 Lampa.Manifest.plugins[PLUGIN_ID] = {
                     type: 'other',
-                    version: '0.5.0',
+                    version: '0.6.0',
                     name: TITLE,
-                    description: 'kill-kenny.com: сезоны → серии → описания → прямой HLS в Lampa Player'
+                    description: 'kill-kenny.com: сезоны → серии → описания → HLS; TV scroll + CORS fallback'
                 };
             }
         } catch (e) {}
