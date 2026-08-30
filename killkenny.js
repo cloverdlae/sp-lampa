@@ -1,6 +1,6 @@
 /*
  * South Park / Kill Kenny catalog for Lampa 3.x
- * v2.0.0
+ * v2.1.0
  *
  * Architecture:
  *   custom cinematic carousel -> catalog.json on GitHub Pages
@@ -13,7 +13,7 @@
 
     var PLUGIN_ID = 'sp_killkenny_v1';
     var COMPONENT = 'sp_killkenny_native';
-    var VERSION = '2.0.0';
+    var VERSION = '2.1.0';
     var TITLE = 'Южный Парк';
     var PROGRESS_PREFIX = 'kkv1_progress_';
 
@@ -572,6 +572,25 @@
         var label = root.find('.kkc-label');
         var counter = root.find('.kkc-counter');
 
+        function safeAction(action) {
+            try {
+                return action();
+            } catch (error) {
+                try {
+                    console.error('[KillKenny v2.1]', error);
+                } catch (consoleError) {}
+
+                try {
+                    Lampa.Noty.show(
+                        'Ошибка интерфейса: ' +
+                        (error && error.message ? error.message : String(error))
+                    );
+                } catch (notyError) {}
+
+                return null;
+            }
+        }
+
         function activeItem() {
             return items.length ? items[activeIndex] : null;
         }
@@ -589,7 +608,7 @@
 
         function makeCard(item, index) {
             var element = $(
-                '<div class="kkc-card selector">' +
+                '<div class="kkc-card">' +
                     '<div class="kkc-card__image"></div>' +
                     '<div class="kkc-card__shade"></div>' +
                     '<div class="kkc-card__content">' +
@@ -618,25 +637,30 @@
                 element.find('.kkc-card__progress span').css('width', progress + '%');
             }
 
-            element.on('hover:hover hover:focus', function () {
+            element.on('mouseenter.kkc', function () {
                 var target = parseInt($(this).attr('data-index'), 10);
 
                 if (target !== activeIndex) {
-                    setActive(target, true);
-                } else {
-                    focusActive(false);
+                    safeAction(function () {
+                        setActive(target, true);
+                    });
                 }
             });
 
-            element.on('hover:enter', function () {
+            element.on('click.kkc', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
                 var target = parseInt($(this).attr('data-index'), 10);
 
-                if (target !== activeIndex) {
-                    setActive(target, true);
-                    return;
-                }
+                safeAction(function () {
+                    if (target !== activeIndex) {
+                        setActive(target, true);
+                        return;
+                    }
 
-                activateCurrent();
+                    activateCurrent();
+                });
             });
 
             track.append(element);
@@ -731,7 +755,7 @@
             }
         }
 
-        function focusActive(useController) {
+        function focusActive() {
             if (!cards.length) return;
 
             cards.forEach(function (element) {
@@ -739,14 +763,9 @@
             });
 
             var current = cards[activeIndex];
-            if (!current) return;
 
-            current.addClass('focus');
-
-            if (useController) {
-                try {
-                    Lampa.Controller.focus(current[0]);
-                } catch (e) {}
+            if (current) {
+                current.addClass('focus');
             }
         }
 
@@ -758,12 +777,15 @@
             rememberCarouselItem(activeItem());
             renderPositions(animate !== false);
             renderAtmosphere();
-            focusActive(false);
+            focusActive();
         }
 
         function move(direction) {
             if (!ready || !items.length) return;
-            setActive(activeIndex + direction, true);
+
+            safeAction(function () {
+                setActive(activeIndex + direction, true);
+            });
         }
 
         function activateCurrent() {
@@ -885,7 +907,7 @@
 
             renderPositions(false);
             renderAtmosphere();
-            focusActive(false);
+            focusActive();
         }
 
         function bindPointerNavigation() {
@@ -938,12 +960,18 @@
             bindPointerNavigation();
 
             loadCatalog(function (catalog, fallback) {
-                self.activity.loader(false);
-                buildFromCatalog(catalog);
+                safeAction(function () {
+                    if (!root || !root.length || !document.documentElement.contains(root[0])) {
+                        return;
+                    }
 
-                if (fallback && mode === 'episodes') {
-                    Lampa.Noty.show('catalog.json пока недоступен');
-                }
+                    self.activity.loader(false);
+                    buildFromCatalog(catalog);
+
+                    if (fallback && mode === 'episodes') {
+                        Lampa.Noty.show('catalog.json пока недоступен');
+                    }
+                });
             });
 
             return this.render();
@@ -956,7 +984,9 @@
         this.start = function () {
             Lampa.Controller.add(controllerName, {
                 toggle: function () {
-                    focusActive(true);
+                    safeAction(function () {
+                        focusActive();
+                    });
                 },
                 left: function () {
                     move(-1);
@@ -965,14 +995,20 @@
                     move(1);
                 },
                 up: function () {
-                    Lampa.Controller.toggle('head');
+                    safeAction(function () {
+                        Lampa.Controller.toggle('head');
+                    });
                 },
                 down: function () {},
                 enter: function () {
-                    activateCurrent();
+                    safeAction(function () {
+                        activateCurrent();
+                    });
                 },
                 back: function () {
-                    self.back();
+                    safeAction(function () {
+                        self.back();
+                    });
                 }
             });
 
@@ -988,6 +1024,12 @@
 
         this.destroy = function () {
             root.off('.kkc');
+
+            cards.forEach(function (element) {
+                try {
+                    element.off('.kkc');
+                } catch (e) {}
+            });
 
             if (resizeTimer) clearTimeout(resizeTimer);
 
@@ -1044,7 +1086,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'Cinematic endless 16:9 carousel + HLS 1–28 + resume playback'
+                    description: 'Cinematic 16:9 carousel v2.1 + isolated input + HLS + resume'
                 };
             }
         } catch (e) {}
