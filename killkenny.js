@@ -1,6 +1,6 @@
 /*
  * South Park / Kill Kenny catalog for Lampa 3.x
- * v1.3.0
+ * v1.4.0
  *
  * Architecture:
  *   Lampa.Maker native UI -> catalog.json on GitHub Pages
@@ -13,8 +13,9 @@
 
     var PLUGIN_ID = 'sp_killkenny_v1';
     var COMPONENT = 'sp_killkenny_native';
-    var VERSION = '1.3.0';
+    var VERSION = '1.4.0';
     var TITLE = 'Южный Парк';
+    var PROGRESS_PREFIX = 'kkv1_progress_';
 
     var SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
     var ASSET_BASE = SCRIPT_URL
@@ -112,6 +113,125 @@
         if (!rule) return '';
 
         return rule.base + pad2(episode) + rule.suffix;
+    }
+
+
+    function progressKey(episode) {
+        return PROGRESS_PREFIX + 's' + pad2(episode.season) + 'e' + pad2(episode.episode);
+    }
+
+    function normalizeProgress(value) {
+        value = value && typeof value === 'object' ? value : {};
+
+        var time = parseFloat(value.time || 0);
+        var duration = parseFloat(value.duration || 0);
+        var percent = parseFloat(value.percent || 0);
+
+        if (!isFinite(time) || time < 0) time = 0;
+        if (!isFinite(duration) || duration < 0) duration = 0;
+
+        if ((!isFinite(percent) || percent < 0) && duration > 0) {
+            percent = Math.round(time / duration * 100);
+        }
+
+        if (!isFinite(percent) || percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+
+        return {
+            time: time,
+            duration: duration,
+            percent: percent,
+            updated_at: value.updated_at || 0
+        };
+    }
+
+    function readProgress(episode) {
+        try {
+            return normalizeProgress(Lampa.Storage.get(progressKey(episode), {}));
+        } catch (e) {
+            return normalizeProgress({});
+        }
+    }
+
+    function saveProgress(episode, percent, time, duration) {
+        var data = normalizeProgress({
+            percent: percent,
+            time: time,
+            duration: duration,
+            updated_at: Date.now()
+        });
+
+        try {
+            Lampa.Storage.set(progressKey(episode), data);
+        } catch (e) {}
+
+        return data;
+    }
+
+    function clearProgress(episode) {
+        try {
+            Lampa.Storage.set(progressKey(episode), {
+                percent: 0,
+                time: 0,
+                duration: 0,
+                updated_at: Date.now()
+            });
+        } catch (e) {}
+    }
+
+    function timelineForEpisode(episode, restart) {
+        var saved = restart ? normalizeProgress({}) : readProgress(episode);
+
+        return {
+            percent: saved.percent,
+            time: saved.time,
+            duration: saved.duration,
+            handler: function (percent, time, duration) {
+                saveProgress(episode, percent, time, duration);
+            }
+        };
+    }
+
+    function formatTime(seconds) {
+        seconds = Math.max(0, Math.floor(parseFloat(seconds || 0)));
+
+        var hours = Math.floor(seconds / 3600);
+        var minutes = Math.floor((seconds % 3600) / 60);
+        var secs = seconds % 60;
+
+        function two(value) {
+            return value < 10 ? ('0' + value) : String(value);
+        }
+
+        return hours
+            ? (hours + ':' + two(minutes) + ':' + two(secs))
+            : (minutes + ':' + two(secs));
+    }
+
+    function progressLabel(episode) {
+        var progress = readProgress(episode);
+
+        if (progress.percent >= 90) {
+            return {
+                type: 'watched',
+                text: '✓ просмотрено',
+                progress: progress
+            };
+        }
+
+        if (progress.time > 10) {
+            return {
+                type: 'continue',
+                text: '▶ продолжить с ' + formatTime(progress.time),
+                progress: progress
+            };
+        }
+
+        return {
+            type: 'new',
+            text: '▶ OK — смотреть',
+            progress: progress
+        };
     }
 
     function fallbackCatalog() {
@@ -283,6 +403,7 @@
 
     function episodeCard(episode) {
         var playable = streamSources(episode.season).length > 0;
+        var watchState = progressLabel(episode);
 
         var cardData = {
             title: episode.title || (episode.episode + ' серия'),
@@ -290,11 +411,12 @@
             original_name:
                 'Сезон ' + episode.season +
                 ' • Серия ' + episode.episode +
-                (playable ? ' • ▶ OK — смотреть' : ' • OK — действия'),
+                (playable ? ' • ' + watchState.text : ' • OK — действия'),
             overview: episode.description || '',
             img: episode.poster || '',
             kk_type: 'episode',
-            kk_episode: episode
+            kk_episode: episode,
+            kk_progress: watchState.progress
         };
 
         cardData.params = {
@@ -329,6 +451,14 @@
     function modalHtml(episode, stream) {
         var description = episode.description || 'Описание для этой серии пока отсутствует в catalog.json.';
         var poster = episode.poster || '';
+        var progress = readProgress(episode);
+        var progressText = '';
+
+        if (progress.percent >= 90) {
+            progressText = ' • просмотрено';
+        } else if (progress.time > 10) {
+            progressText = ' • сохранено ' + formatTime(progress.time);
+        }
 
         var html =
             '<div class="kkv1-info" style="padding:.4em .2em 1em;line-height:1.45">' +
@@ -338,6 +468,7 @@
                 '<div style="font-size:1.1em;opacity:.86">' + escapeHtml(description) + '</div>' +
                 '<div style="margin-top:1em;opacity:.55;font-size:.86em">' +
                     'Сезон ' + episode.season + ' • Серия ' + episode.episode +
+                    progressText +
                     (stream ? ' • HLS доступен' : ' • поток пока не настроен') +
                 '</div>' +
             '</div>';
@@ -345,7 +476,7 @@
         return $(html);
     }
 
-    function playEpisode(episode, sourceId) {
+    function playEpisode(episode, sourceId, restart) {
         var rule = streamRule(episode.season, sourceId);
         var url = streamUrl(episode.season, episode.episode, sourceId);
 
@@ -354,6 +485,10 @@
                 'Для ' + episode.season + ' сезона поток пока не настроен'
             );
             return;
+        }
+
+        if (restart) {
+            clearProgress(episode);
         }
 
         var all = [];
@@ -369,7 +504,8 @@
                         url: itemUrl,
                         season: item.season,
                         episode: item.episode,
-                        img: item.poster || ''
+                        img: item.poster || '',
+                        timeline: timelineForEpisode(item, false)
                     });
                 }
             });
@@ -380,7 +516,8 @@
             url: url,
             season: episode.season,
             episode: episode.episode,
-            img: episode.poster || ''
+            img: episode.poster || '',
+            timeline: timelineForEpisode(episode, !!restart)
         };
 
         try {
@@ -416,6 +553,8 @@
     function openEpisodeActions(episode) {
         var controller = '';
         var sources = streamSources(episode.season);
+        var progress = readProgress(episode);
+        var canContinue = progress.time > 10 && progress.percent < 90;
         var items = [];
 
         try {
@@ -424,20 +563,33 @@
             controller = 'content';
         }
 
-        if (sources.length === 1) {
+        function addPlayAction(source, restart) {
+            var sourceText = source.label ? (' • ' + source.label) : '';
+
             items.push({
-                title: '▶ Смотреть' + (sources[0].label ? ' • ' + sources[0].label : ''),
+                title:
+                    (restart
+                        ? '↺ Смотреть сначала'
+                        : (canContinue
+                            ? ('▶ Продолжить с ' + formatTime(progress.time))
+                            : '▶ Смотреть')) +
+                    sourceText,
                 action: 'play',
-                source: sources[0].id
+                source: source.id,
+                restart: !!restart
             });
-        } else if (sources.length > 1) {
+        }
+
+        if (sources.length) {
             sources.forEach(function (source) {
-                items.push({
-                    title: '▶ Смотреть • ' + (source.label || source.id),
-                    action: 'play',
-                    source: source.id
-                });
+                addPlayAction(source, false);
             });
+
+            if (canContinue) {
+                sources.forEach(function (source) {
+                    addPlayAction(source, true);
+                });
+            }
         } else {
             items.push({
                 title: 'Поток для ' + episode.season + ' сезона пока не настроен',
@@ -461,7 +613,11 @@
                     Lampa.Select.close();
 
                     setTimeout(function () {
-                        playEpisode(episode, item.source);
+                        playEpisode(
+                            episode,
+                            item.source,
+                            item.restart
+                        );
                     }, 120);
 
                     return;
@@ -664,7 +820,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'Native Lampa.Maker UI + HLS seasons 1–28 + GitHub catalog.json'
+                    description: 'Native Lampa.Maker UI + HLS 1–28 + resume playback + GitHub catalog.json'
                 };
             }
         } catch (e) {}
