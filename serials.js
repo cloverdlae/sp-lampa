@@ -1,6 +1,6 @@
 /*
  * Serials Hub for Lampa 3.x
- * v0.2.0
+ * v0.3.1
  *
  * Shows:
  *   - South Park: stable v1.4 logic + catalog.json + direct HLS rules
@@ -14,7 +14,7 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.2.0';
+    var VERSION = '0.3.1';
     var TITLE = 'Сериалы';
 
     var SP_TITLE = 'Южный Парк';
@@ -25,6 +25,11 @@
     var BBT_VOICE_NAME = 'Кураж-Бамбей';
     var BBT_SERIAL_ID = 486;
     var BBT_PROGRESS_PREFIX = 'bbtv1_progress_';
+
+    var FG_TITLE = 'Гриффины';
+    var FG_PROGRESS_PREFIX = 'fgv1_progress_';
+    var FG_LAST_KEY = 'fgv1_last';
+    var FG_POSTER = 'https://image.tmdb.org/t/p/w500/xtIFsv0Wpy29Bw7i8gUm1L9x6x8.jpg';
 
     var BBT_API_BASES = [
         'https://kalarona.org'
@@ -97,6 +102,20 @@
     };
 
     var catalogCache = null;
+
+    /*
+     * Family Guy catalog collected from griffiny.ru pages.
+     * Jaskier, Coldfilm and RuDub intentionally excluded per user request.
+     * Voice -> CDN slug was manually verified by the user.
+     */
+    var FG_CATALOG = {"1":{"1":["Филиза","Ren-TV"],"2":["Филиза","Ren-TV"],"3":["Филиза"],"4":["Филиза","Ren-TV"],"5":["Филиза","Ren-TV"],"6":["Филиза","Ren-TV"],"7":["Филиза","Ren-TV"]},"2":{"1":["Ren-TV"],"2":["Ren-TV"],"3":["Ren-TV"],"4":["Ren-TV"],"5":["Ren-TV"],"6":["Ren-TV"],"7":["Ren-TV"],"8":["Ren-TV"],"9":["Ren-TV"],"10":["Ren-TV"],"11":["Ren-TV"],"12":["Ren-TV"],"13":["Ren-TV"],"14":["Ren-TV"],"15":["Ren-TV"],"16":["Ren-TV"],"17":["Ren-TV"],"18":["Ren-TV"],"19":["Ren-TV"],"20":["Ren-TV"],"21":["Ren-TV"]},"3":{"1":["Ren-TV"],"2":["Ren-TV"],"3":["Ren-TV"],"4":["Филиза"],"5":["Ren-TV"],"6":["Ren-TV"],"7":["Ren-TV"],"8":["Ren-TV"],"9":["Ren-TV"],"10":["Ren-TV"],"11":["Ren-TV"],"12":["Ren-TV"],"13":["Ren-TV"],"14":["Ren-TV"],"15":["Ren-TV"],"16":["Ren-TV"],"17":["Ren-TV"],"18":["Ren-TV"],"19":["Ren-TV"],"20":["Ren-TV"],"21":["Ren-TV"],"22":["Ren-TV"]},"4":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"],"22":["Филиза","2x2"],"23":["Филиза","2x2"],"24":["Филиза","2x2"],"26":["Филиза","2x2"],"27":["Филиза","2x2"]},"5":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"]},"6":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"]},"7":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"]},"8":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"]},"9":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"]},"10":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"],"22":["Филиза","2x2"],"23":["Филиза","2x2"]},"11":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"],"22":["Филиза","2x2"]},"12":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"]},"13":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"]},"14":{"1":["Филиза"],"2":["Филиза"],"3":["Филиза"],"4":["Филиза"],"5":["Филиза"],"6":["Филиза"],"7":["Филиза"],"8":["Филиза"],"9":["Филиза"],"10":["Филиза"],"11":["Филиза"],"12":["Филиза"],"13":["Филиза"],"14":["Филиза"],"15":["Филиза","Omskbird"],"16":["Филиза","Omskbird"],"17":["Филиза","Omskbird"],"18":["Филиза","Omskbird"],"19":["Филиза","Omskbird"],"20":["Филиза","Omskbird"]},"15":{"1":["Филиза","Omskbird"],"2":["Филиза","Omskbird"],"3":["Филиза","Omskbird"],"4":["Филиза","Omskbird"],"5":["Филиза","Omskbird"],"6":["Филиза","Omskbird"],"7":["Филиза","Omskbird"],"8":["Филиза","Omskbird"],"9":["Филиза","Omskbird"],"10":["Филиза","Omskbird"],"11":["Филиза","Omskbird"],"12":["Филиза","Omskbird"],"13":["Филиза","Omskbird"],"14":["Omskbird"],"15":["Филиза","Omskbird"],"16":["Филиза","Omskbird"],"17":["Филиза","Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"16":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"17":{"1":["Филиза","Omskbird"],"2":["Филиза","Omskbird"],"3":["Филиза","Omskbird"],"4":["Филиза","Omskbird"],"5":["Филиза","Omskbird"],"6":["Филиза","Omskbird"],"7":["Филиза","Omskbird"],"8":["Филиза","Omskbird"],"9":["Филиза","Omskbird"],"10":["Филиза","Omskbird"],"11":["Филиза","Omskbird"],"12":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"18":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"19":{"1":["2x2","Omskbird"],"2":["2x2","Omskbird"],"3":["2x2","Omskbird"],"4":["2x2","Omskbird"],"5":["2x2","Omskbird"],"6":["2x2","Omskbird"],"7":["2x2","Omskbird"],"8":["2x2","Omskbird"],"9":["2x2","Omskbird"],"10":["2x2","Omskbird"],"11":["2x2","Omskbird"],"12":["2x2","Omskbird"],"13":["2x2","Omskbird"],"14":["2x2","Omskbird"],"15":["2x2","Omskbird"],"16":["2x2","Omskbird"],"17":["2x2","Omskbird"],"18":["2x2","Omskbird"],"19":["2x2","Omskbird"],"20":["2x2","Omskbird"]},"20":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"21":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"22":{"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"]},"23":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"24":{"1":["Omskbird"],"2":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"]}};
+
+    var FG_VOICE_RULES = {
+        'Филиза': { id: 'filiza',   label: 'Филиза',   slug: 'filiza' },
+        'Ren-TV': { id: 'rentv',    label: 'Ren-TV',   slug: 'rentv' },
+        '2x2':    { id: '2x2',      label: '2x2',      slug: '2x2' },
+        'Omskbird': { id: 'omskbird', label: 'Omskbird', slug: 'omskbird' }
+    };
 
     var ICON =
         '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2">' +
@@ -836,6 +855,13 @@
                     subtitle: '12 сезонов • ' + BBT_VOICE_NAME,
                     overview: 'Теория большого взрыва',
                     img: bbtPoster(1, 1)
+                }),
+                libraryCard({
+                    id: 'familyguy',
+                    title: FG_TITLE,
+                    subtitle: '24 сезона • озвучки по сериям',
+                    overview: 'Гриффины',
+                    img: FG_POSTER
                 })
             ],
             params: {
@@ -863,6 +889,15 @@
                 component: COMPONENT,
                 title: BBT_TITLE,
                 hub_mode: 'bbt_seasons',
+                page: 1
+            });
+        }
+
+        if (showId === 'familyguy') {
+            Lampa.Activity.push({
+                component: COMPONENT,
+                title: FG_TITLE,
+                hub_mode: 'fg_seasons',
                 page: 1
             });
         }
@@ -1532,6 +1567,483 @@
         });
     }
 
+
+    function fgProgressKey(episode) {
+        return FG_PROGRESS_PREFIX +
+            's' + pad2(episode.season) +
+            'e' + pad2(episode.episode);
+    }
+
+    function fgReadProgress(episode) {
+        try {
+            return normalizeProgress(Lampa.Storage.get(fgProgressKey(episode), {}));
+        } catch (e) {
+            return normalizeProgress({});
+        }
+    }
+
+    function fgSaveProgress(episode, percent, time, duration) {
+        var data = normalizeProgress({
+            percent: percent,
+            time: time,
+            duration: duration,
+            updated_at: Date.now()
+        });
+
+        try {
+            Lampa.Storage.set(fgProgressKey(episode), data);
+        } catch (e) {}
+
+        return data;
+    }
+
+    function fgClearProgress(episode) {
+        try {
+            Lampa.Storage.set(fgProgressKey(episode), {
+                percent: 0,
+                time: 0,
+                duration: 0,
+                updated_at: Date.now()
+            });
+        } catch (e) {}
+    }
+
+    function fgTimelineForEpisode(episode, restart) {
+        var saved = restart ? normalizeProgress({}) : fgReadProgress(episode);
+
+        return {
+            percent: saved.percent,
+            time: saved.time,
+            duration: saved.duration,
+            handler: function (percent, time, duration) {
+                fgSaveProgress(episode, percent, time, duration);
+            }
+        };
+    }
+
+    function fgProgressLabel(episode) {
+        var progress = fgReadProgress(episode);
+
+        if (progress.percent >= 90) {
+            return {
+                type: 'watched',
+                text: '✓ просмотрено',
+                progress: progress
+            };
+        }
+
+        if (progress.time > 10) {
+            return {
+                type: 'continue',
+                text: '▶ продолжить с ' + formatTime(progress.time),
+                progress: progress
+            };
+        }
+
+        return {
+            type: 'new',
+            text: '▶ OK — смотреть',
+            progress: progress
+        };
+    }
+
+    function fgVoiceRules(episode) {
+        var voices = episode && episode.voices ? episode.voices : [];
+        var out = [];
+
+        voices.forEach(function (voice) {
+            if (FG_VOICE_RULES[voice]) out.push(FG_VOICE_RULES[voice]);
+        });
+
+        return out;
+    }
+
+    function fgStreamUrl(episode, voiceId) {
+        var rule = null;
+
+        Object.keys(FG_VOICE_RULES).some(function (key) {
+            if (FG_VOICE_RULES[key].id === voiceId) {
+                rule = FG_VOICE_RULES[key];
+                return true;
+            }
+            return false;
+        });
+
+        if (!rule) return '';
+
+        return 'https://cdn.videozcdn.uk/video/griffinyru/s' +
+            pad2(episode.season) + '-' + rule.slug + '/' +
+            pad2(episode.episode) + '.mp4/index.m3u8';
+    }
+
+    function fgEpisodeData(season, episode) {
+        var list = FG_CATALOG[String(season)] || FG_CATALOG[season] || {};
+        var voices = list[String(episode)] || list[episode] || [];
+
+        return {
+            show: 'familyguy',
+            season: parseInt(season, 10) || 0,
+            episode: parseInt(episode, 10) || 0,
+            title: (parseInt(episode, 10) || 0) + ' серия',
+            description: 'Гриффины • доступные переводы: ' + voices.join(', '),
+            poster: FG_POSTER,
+            voices: voices.slice()
+        };
+    }
+
+    function fgSeasonCard(season) {
+        var list = FG_CATALOG[String(season)] || FG_CATALOG[season] || {};
+        var count = Object.keys(list).length;
+        var cardData = {
+            title: season + ' сезон',
+            name: season + ' сезон',
+            original_name: count + ' серий • OK — открыть',
+            overview: FG_TITLE + ' • ' + season + ' сезон',
+            img: FG_POSTER,
+            fg_type: 'season',
+            fg_season: season
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    pushFamilyGuySeason(season);
+                }
+            }
+        };
+
+        return cardData;
+    }
+
+    function fgEpisodeCard(episode) {
+        var watchState = fgProgressLabel(episode);
+        var voices = fgVoiceRules(episode).map(function (voice) {
+            return voice.label;
+        });
+
+        var voiceText = voices.length ? voices.join(' • ') : 'нет перевода';
+
+        var cardData = {
+            title: episode.title,
+            name: episode.title,
+            original_name:
+                'Сезон ' + episode.season +
+                ' • Серия ' + episode.episode +
+                ' • ' + voiceText +
+                ' • ' + watchState.text,
+            overview: episode.description || '',
+            img: episode.poster || FG_POSTER,
+            fg_type: 'episode',
+            fg_episode: episode,
+            fg_progress: watchState.progress
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    openFamilyGuyEpisodeActions(episode);
+                }
+            }
+        };
+
+        return cardData;
+    }
+
+    function buildFamilyGuySeasonLines() {
+        var items = [];
+
+        Object.keys(FG_CATALOG).map(function (key) {
+            return parseInt(key, 10);
+        }).sort(function (a, b) {
+            return a - b;
+        }).forEach(function (season) {
+            items.push(fgSeasonCard(season));
+        });
+
+        var groups = chunks(items, 7);
+
+        return groups.map(function (group, index) {
+            var first = index * 7 + 1;
+            var last = first + group.length - 1;
+
+            return {
+                title: 'Сезоны ' + first + '–' + last,
+                results: group,
+                params: {
+                    items: {
+                        align_left: true,
+                        view: 5
+                    }
+                }
+            };
+        });
+    }
+
+    function buildFamilyGuyEpisodeLines(seasonNumber) {
+        var list = FG_CATALOG[String(seasonNumber)] || FG_CATALOG[seasonNumber] || {};
+        var episodes = Object.keys(list).map(function (episodeNumber) {
+            return fgEpisodeData(seasonNumber, parseInt(episodeNumber, 10));
+        }).sort(function (a, b) {
+            return a.episode - b.episode;
+        }).map(fgEpisodeCard);
+
+        if (!episodes.length) {
+            return [{
+                title: seasonNumber + ' сезон',
+                results: [{
+                    title: 'Серии не найдены',
+                    name: 'Серии не найдены',
+                    original_name: 'Каталог озвучек пуст',
+                    overview: '',
+                    fg_type: 'info',
+                    params: {
+                        style: {
+                            name: 'wide'
+                        }
+                    }
+                }]
+            }];
+        }
+
+        var groups = chunks(episodes, 8);
+
+        return groups.map(function (group) {
+            var firstEpisode = group[0].fg_episode.episode;
+            var lastEpisode = group[group.length - 1].fg_episode.episode;
+
+            return {
+                title: group.length > 1
+                    ? ('Серии ' + firstEpisode + '–' + lastEpisode)
+                    : ('Серия ' + firstEpisode),
+                results: group,
+                params: {
+                    items: {
+                        align_left: true,
+                        view: 4
+                    }
+                }
+            };
+        });
+    }
+
+    function pushFamilyGuySeason(season) {
+        Lampa.Activity.push({
+            component: COMPONENT,
+            title: FG_TITLE + ' • ' + season + ' сезон',
+            hub_mode: 'fg_episodes',
+            kk_season: season,
+            page: 1
+        });
+    }
+
+    function fgModalHtml(episode) {
+        var progress = fgReadProgress(episode);
+        var progressText = '';
+
+        if (progress.percent >= 90) {
+            progressText = ' • просмотрено';
+        } else if (progress.time > 10) {
+            progressText = ' • сохранено ' + formatTime(progress.time);
+        }
+
+        var voices = fgVoiceRules(episode).map(function (voice) {
+            return voice.label;
+        }).join(', ');
+
+        return $(
+            '<div class="fgv1-info" style="padding:.4em .2em 1em;line-height:1.45">' +
+                '<div style="margin-bottom:1em"><img src="' + escapeHtml(FG_POSTER) + '" style="max-width:26em;max-height:14em;border-radius:.6em;object-fit:cover"></div>' +
+                '<div style="font-size:1.1em;opacity:.86">' +
+                    escapeHtml('Доступные переводы: ' + voices) +
+                '</div>' +
+                '<div style="margin-top:1em;opacity:.55;font-size:.86em">' +
+                    'Сезон ' + episode.season + ' • Серия ' + episode.episode +
+                    progressText +
+                '</div>' +
+            '</div>'
+        );
+    }
+
+    function playFamilyGuyEpisode(episode, voiceId, restart) {
+        var url = fgStreamUrl(episode, voiceId);
+        var rule = null;
+
+        fgVoiceRules(episode).some(function (item) {
+            if (item.id === voiceId) {
+                rule = item;
+                return true;
+            }
+            return false;
+        });
+
+        if (!rule || !url) {
+            Lampa.Noty.show('Для этой серии выбранный перевод недоступен');
+            return;
+        }
+
+        if (restart) fgClearProgress(episode);
+
+        var all = [];
+        var seasonList = FG_CATALOG[String(episode.season)] || {};
+
+        Object.keys(seasonList).map(function (ep) {
+            return fgEpisodeData(episode.season, parseInt(ep, 10));
+        }).sort(function (a, b) {
+            return a.episode - b.episode;
+        }).forEach(function (item) {
+            if (item.voices.indexOf(rule.label) === -1) return;
+
+            var itemUrl = fgStreamUrl(item, voiceId);
+            if (!itemUrl) return;
+
+            all.push({
+                title: item.title,
+                url: itemUrl,
+                season: item.season,
+                episode: item.episode,
+                img: item.poster || FG_POSTER,
+                timeline: fgTimelineForEpisode(item, false)
+            });
+        });
+
+        var current = {
+            title: episode.title,
+            url: url,
+            season: episode.season,
+            episode: episode.episode,
+            img: episode.poster || FG_POSTER,
+            timeline: fgTimelineForEpisode(episode, !!restart)
+        };
+
+        try {
+            Lampa.Storage.set(FG_LAST_KEY, {
+                season: episode.season,
+                episode: episode.episode,
+                title: current.title,
+                source: rule.id,
+                voice: rule.label
+            });
+        } catch (e) {}
+
+        Lampa.Player.play(current);
+        Lampa.Player.playlist(all.length ? all : [current]);
+    }
+
+    function showFamilyGuyInfo(episode, controller) {
+        Lampa.Modal.open({
+            title: episode.title || (episode.episode + ' серия'),
+            html: fgModalHtml(episode),
+            size: 'medium',
+            onBack: function () {
+                if (controller) {
+                    setTimeout(function () {
+                        Lampa.Controller.toggle(controller);
+                    }, 0);
+                }
+            }
+        });
+    }
+
+    function openFamilyGuyEpisodeActions(episode) {
+        var controller = '';
+        var sources = fgVoiceRules(episode);
+        var progress = fgReadProgress(episode);
+        var canContinue = progress.time > 10 && progress.percent < 90;
+        var items = [];
+
+        try {
+            controller = Lampa.Controller.enabled().name;
+        } catch (e) {
+            controller = 'content';
+        }
+
+        function addPlayAction(source, restart) {
+            items.push({
+                title:
+                    (restart
+                        ? '↺ Смотреть сначала'
+                        : (canContinue
+                            ? ('▶ Продолжить с ' + formatTime(progress.time))
+                            : '▶ Смотреть')) +
+                    ' • ' + source.label,
+                action: 'play',
+                source: source.id,
+                restart: !!restart
+            });
+        }
+
+        sources.forEach(function (source) {
+            addPlayAction(source, false);
+        });
+
+        if (canContinue) {
+            sources.forEach(function (source) {
+                addPlayAction(source, true);
+            });
+        }
+
+        if (!sources.length) {
+            items.push({
+                title: 'Для этой серии нет настроенного перевода',
+                action: 'missing'
+            });
+        }
+
+        items.push({
+            title: 'О серии',
+            action: 'info'
+        });
+
+        Lampa.Select.show({
+            title: episode.title || (episode.episode + ' серия'),
+            items: items,
+
+            onSelect: function (item) {
+                if (!item) return;
+
+                if (item.action === 'play') {
+                    Lampa.Select.close();
+                    setTimeout(function () {
+                        playFamilyGuyEpisode(episode, item.source, item.restart);
+                    }, 120);
+                    return;
+                }
+
+                if (item.action === 'info') {
+                    Lampa.Select.close();
+                    setTimeout(function () {
+                        showFamilyGuyInfo(episode, controller);
+                    }, 120);
+                    return;
+                }
+
+                if (item.action === 'missing') {
+                    Lampa.Noty.show('Для этой серии перевод пока не настроен');
+                }
+            },
+
+            onBack: function () {
+                if (controller) {
+                    setTimeout(function () {
+                        Lampa.Controller.toggle(controller);
+                    }, 0);
+                }
+            }
+        });
+    }
+
     function NativeComponent(object) {
         var comp = Lampa.Maker.make('Main', object || {});
         var mode = (object && object.hub_mode) || 'library';
@@ -1555,6 +2067,16 @@
 
                 if (mode === 'bbt_episodes') {
                     finish(buildBigBangEpisodeLines(seasonNumber));
+                    return;
+                }
+
+                if (mode === 'fg_seasons') {
+                    finish(buildFamilyGuySeasonLines());
+                    return;
+                }
+
+                if (mode === 'fg_episodes') {
+                    finish(buildFamilyGuyEpisodeLines(seasonNumber));
                     return;
                 }
 
@@ -1621,7 +2143,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + The Big Bang Theory • Maker UI • BBT script/native resolver v0.2'
+                    description: 'Южный Парк + Теория большого взрыва + Гриффины • Maker UI • v0.3'
                 };
             }
         } catch (e) {}
