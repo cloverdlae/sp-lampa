@@ -1,0 +1,1500 @@
+/*
+ * Serials Hub for Lampa 3.x
+ * v0.1.0
+ *
+ * Shows:
+ *   - South Park: stable v1.4 logic + catalog.json + direct HLS rules
+ *   - The Big Bang Theory: Maker UI + Kurazh-Bambey resolver
+ *
+ * Architecture:
+ *   Lampa.Maker native UI -> library -> show -> season -> episode
+ */
+(function () {
+    'use strict';
+
+    var PLUGIN_ID = 'serials_hub_v1';
+    var COMPONENT = 'serials_hub_native';
+    var VERSION = '0.1.0';
+    var TITLE = 'Сериалы';
+
+    var SP_TITLE = 'Южный Парк';
+    var PROGRESS_PREFIX = 'kkv1_progress_';
+
+    var BBT_TITLE = 'Теория большого взрыва';
+    var BBT_VOICE_ID = 14;
+    var BBT_VOICE_NAME = 'Кураж-Бамбей';
+    var BBT_SERIAL_ID = 486;
+    var BBT_PROGRESS_PREFIX = 'bbtv1_progress_';
+
+    var BBT_API_BASES = [
+        'https://apiplayer.gdyrin.store/v1',
+        'https://kalarona.org'
+    ];
+
+    var BBT_SEASON_COUNTS = {
+        1: 17,
+        2: 23,
+        3: 23,
+        4: 24,
+        5: 24,
+        6: 24,
+        7: 24,
+        8: 24,
+        9: 24,
+        10: 24,
+        11: 24,
+        12: 24
+    };
+
+    var SCRIPT_URL = (document.currentScript && document.currentScript.src) || '';
+    var ASSET_BASE = SCRIPT_URL
+        ? SCRIPT_URL.split('?')[0].replace(/[^/]+$/, '')
+        : 'https://cloverdlae.github.io/sp-lampa/';
+
+    var CATALOG_URLS = [
+        ASSET_BASE + 'catalog.json?v=' + encodeURIComponent(VERSION),
+        'https://raw.githubusercontent.com/cloverdlae/sp-lampa/main/catalog.json'
+    ];
+
+    /*
+     * Known direct HLS rules supplied separately by the user.
+     * Add only verified season rules here.
+     */
+    var STREAM_RULES = {
+        1:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s1-mtv/',        suffix: '.mp4/index.m3u8' }],
+        2:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s2-mtv/',        suffix: '.mp4/index.m3u8' }],
+        3:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s3-mtv/',        suffix: '.mp4/index.m3u8' }],
+        4:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s4-mtv/',        suffix: '.mp4/index.m3u8' }],
+        5:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s5-mtv/',        suffix: '.mp4/index.m3u8' }],
+        6:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s6-mtv/',        suffix: '.mp4/index.m3u8' }],
+        7:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s7-mtv/',        suffix: '.mp4/index.m3u8' }],
+        8:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s8-mtv/',        suffix: '.mp4/index.m3u8' }],
+        9:  [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s9-mtv/',        suffix: '.mp4/index.m3u8' }],
+        10: [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s10-mtv/',       suffix: '.mp4/index.m3u8' }],
+        11: [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s11-mtv/',       suffix: '.mp4/index.m3u8' }],
+        12: [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s12-mtv/',       suffix: '.mp4/index.m3u8' }],
+        13: [{ id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s13-mtv/',       suffix: '.mp4/index.m3u8' }],
+
+        14: [
+            { id: 'mtv',       label: 'MTV',       base: 'https://cdn.videozcdn.uk/video/killkenny/s14-mtv/',       suffix: '.mp4/index.m3u8' },
+            { id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s14-paramount/', suffix: '.mp4/index.m3u8' }
+        ],
+
+        15: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s15-paramount/', suffix: '.mp4/index.m3u8' }],
+        16: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s16-paramount/', suffix: '.mp4/index.m3u8' }],
+        17: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s17-paramount/', suffix: '.mp4/index.m3u8' }],
+        18: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s18-paramount/', suffix: '.mp4/index.m3u8' }],
+        19: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s19-paramount/', suffix: '.mp4/index.m3u8' }],
+        20: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s20-paramount/', suffix: '.mp4/index.m3u8' }],
+        21: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s21-paramount/', suffix: '.mp4/index.m3u8' }],
+        22: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s22-paramount/', suffix: '.mp4/index.m3u8' }],
+        23: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s23-paramount/', suffix: '.mp4/index.m3u8' }],
+        24: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/killkenny/s24-paramount/', suffix: '.mp4/index.m3u8' }],
+
+        25: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/spark/s25-paramount/', suffix: '.mp4/index.m3u8' }],
+        26: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/spark/s26-paramount/', suffix: '.mp4/index.m3u8' }],
+        27: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/spark/s27-paramount/', suffix: '.mp4/index.m3u8' }],
+        28: [{ id: 'paramount', label: 'Paramount', base: 'https://cdn.videozcdn.uk/video/spark/s28-paramount/', suffix: '.mp4/index.m3u8' }]
+    };
+
+    var catalogCache = null;
+
+    var ICON =
+        '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2">' +
+            '<rect x="3" y="4" width="18" height="16" rx="2"></rect>' +
+            '<path d="M7 8h10M7 12h10M7 16h6"></path>' +
+        '</svg>';
+
+    function appDigital() {
+        try {
+            return Number(Lampa.Manifest.app_digital || 0);
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    function pad2(value) {
+        value = parseInt(value, 10) || 0;
+        return value < 10 ? ('0' + value) : String(value);
+    }
+
+    function streamSources(season) {
+        return STREAM_RULES[parseInt(season, 10)] || [];
+    }
+
+    function streamRule(season, sourceId) {
+        var sources = streamSources(season);
+
+        if (!sources.length) return null;
+
+        if (sourceId) {
+            for (var i = 0; i < sources.length; i++) {
+                if (sources[i].id === sourceId) return sources[i];
+            }
+        }
+
+        return sources[0];
+    }
+
+    function streamUrl(season, episode, sourceId) {
+        var rule = streamRule(season, sourceId);
+
+        if (!rule) return '';
+
+        return rule.base + pad2(episode) + rule.suffix;
+    }
+
+
+    function progressKey(episode) {
+        return PROGRESS_PREFIX + 's' + pad2(episode.season) + 'e' + pad2(episode.episode);
+    }
+
+    function normalizeProgress(value) {
+        value = value && typeof value === 'object' ? value : {};
+
+        var time = parseFloat(value.time || 0);
+        var duration = parseFloat(value.duration || 0);
+        var percent = parseFloat(value.percent || 0);
+
+        if (!isFinite(time) || time < 0) time = 0;
+        if (!isFinite(duration) || duration < 0) duration = 0;
+
+        if ((!isFinite(percent) || percent < 0) && duration > 0) {
+            percent = Math.round(time / duration * 100);
+        }
+
+        if (!isFinite(percent) || percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+
+        return {
+            time: time,
+            duration: duration,
+            percent: percent,
+            updated_at: value.updated_at || 0
+        };
+    }
+
+    function readProgress(episode) {
+        try {
+            return normalizeProgress(Lampa.Storage.get(progressKey(episode), {}));
+        } catch (e) {
+            return normalizeProgress({});
+        }
+    }
+
+    function saveProgress(episode, percent, time, duration) {
+        var data = normalizeProgress({
+            percent: percent,
+            time: time,
+            duration: duration,
+            updated_at: Date.now()
+        });
+
+        try {
+            Lampa.Storage.set(progressKey(episode), data);
+        } catch (e) {}
+
+        return data;
+    }
+
+    function clearProgress(episode) {
+        try {
+            Lampa.Storage.set(progressKey(episode), {
+                percent: 0,
+                time: 0,
+                duration: 0,
+                updated_at: Date.now()
+            });
+        } catch (e) {}
+    }
+
+    function timelineForEpisode(episode, restart) {
+        var saved = restart ? normalizeProgress({}) : readProgress(episode);
+
+        return {
+            percent: saved.percent,
+            time: saved.time,
+            duration: saved.duration,
+            handler: function (percent, time, duration) {
+                saveProgress(episode, percent, time, duration);
+            }
+        };
+    }
+
+    function formatTime(seconds) {
+        seconds = Math.max(0, Math.floor(parseFloat(seconds || 0)));
+
+        var hours = Math.floor(seconds / 3600);
+        var minutes = Math.floor((seconds % 3600) / 60);
+        var secs = seconds % 60;
+
+        function two(value) {
+            return value < 10 ? ('0' + value) : String(value);
+        }
+
+        return hours
+            ? (hours + ':' + two(minutes) + ':' + two(secs))
+            : (minutes + ':' + two(secs));
+    }
+
+    function progressLabel(episode) {
+        var progress = readProgress(episode);
+
+        if (progress.percent >= 90) {
+            return {
+                type: 'watched',
+                text: '✓ просмотрено',
+                progress: progress
+            };
+        }
+
+        if (progress.time > 10) {
+            return {
+                type: 'continue',
+                text: '▶ продолжить с ' + formatTime(progress.time),
+                progress: progress
+            };
+        }
+
+        return {
+            type: 'new',
+            text: '▶ OK — смотреть',
+            progress: progress
+        };
+    }
+
+    function fallbackCatalog() {
+        var seasons = {};
+
+        for (var i = 1; i <= 28; i++) {
+            seasons[String(i)] = {
+                season: i,
+                title: i + ' сезон',
+                episodes: []
+            };
+        }
+
+        return {
+            version: 1,
+            source: 'kill-kenny.com',
+            updated_at: null,
+            seasons: seasons
+        };
+    }
+
+    function parseCatalog(text) {
+        var data = typeof text === 'string' ? JSON.parse(text) : text;
+
+        if (!data || typeof data !== 'object') throw new Error('bad catalog');
+        if (!data.seasons || typeof data.seasons !== 'object') throw new Error('no seasons');
+
+        return data;
+    }
+
+    function loadText(url, success, fail) {
+        if (typeof fetch === 'function') {
+            fetch(url, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-store'
+            })
+            .then(function (response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.text();
+            })
+            .then(success)
+            .catch(function () {
+                requestFallback(url, success, fail);
+            });
+
+            return;
+        }
+
+        requestFallback(url, success, fail);
+    }
+
+    function requestFallback(url, success, fail) {
+        try {
+            var network = Lampa.Network
+                ? new Lampa.Network()
+                : new Lampa.Reguest();
+
+            network.silent(
+                url,
+                function (data) {
+                    success(typeof data === 'string' ? data : String(data || ''));
+                },
+                fail,
+                false,
+                {
+                    dataType: 'text',
+                    cache: {
+                        life: 5
+                    }
+                }
+            );
+        } catch (e) {
+            fail(e);
+        }
+    }
+
+    function loadCatalog(done) {
+        if (catalogCache) {
+            done(catalogCache, false);
+            return;
+        }
+
+        var index = 0;
+
+        function next() {
+            if (index >= CATALOG_URLS.length) {
+                catalogCache = fallbackCatalog();
+                done(catalogCache, true);
+                return;
+            }
+
+            var url = CATALOG_URLS[index++];
+
+            loadText(
+                url,
+                function (text) {
+                    try {
+                        catalogCache = parseCatalog(text);
+                        done(catalogCache, false);
+                    } catch (e) {
+                        next();
+                    }
+                },
+                next
+            );
+        }
+
+        next();
+    }
+
+    function seasonRecord(catalog, season) {
+        return catalog &&
+            catalog.seasons &&
+            (catalog.seasons[String(season)] || catalog.seasons[season]);
+    }
+
+    function firstPoster(seasonData) {
+        if (!seasonData || !seasonData.episodes) return '';
+
+        for (var i = 0; i < seasonData.episodes.length; i++) {
+            if (seasonData.episodes[i].poster) return seasonData.episodes[i].poster;
+        }
+
+        return '';
+    }
+
+    function chunks(items, size) {
+        var out = [];
+
+        for (var i = 0; i < items.length; i += size) {
+            out.push(items.slice(i, i + size));
+        }
+
+        return out;
+    }
+
+    function seasonCard(seasonData) {
+        var season = parseInt(seasonData.season, 10);
+        var count = (seasonData.episodes || []).length;
+        var cardData = {
+            title: season + ' сезон',
+            name: season + ' сезон',
+            original_name: count ? (count + ' серий • OK — открыть') : 'OK — открыть сезон',
+            overview: count
+                ? ('Сезон ' + season + ' • ' + count + ' серий')
+                : ('Сезон ' + season),
+            img: firstPoster(seasonData),
+            kk_type: 'season',
+            kk_season: season
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    pushSeason(season);
+                }
+            }
+        };
+
+        return cardData;
+    }
+
+    function episodeCard(episode) {
+        var playable = streamSources(episode.season).length > 0;
+        var watchState = progressLabel(episode);
+
+        var cardData = {
+            title: episode.title || (episode.episode + ' серия'),
+            name: episode.title || (episode.episode + ' серия'),
+            original_name:
+                'Сезон ' + episode.season +
+                ' • Серия ' + episode.episode +
+                (playable ? ' • ' + watchState.text : ' • OK — действия'),
+            overview: episode.description || '',
+            img: episode.poster || '',
+            kk_type: 'episode',
+            kk_episode: episode,
+            kk_progress: watchState.progress
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    openEpisodeActions(episode);
+                }
+            }
+        };
+
+        return cardData;
+    }
+
+    function escapeHtml(value) {
+        if (Lampa.Utils && Lampa.Utils.escape) {
+            return Lampa.Utils.escape(String(value || ''));
+        }
+
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function modalHtml(episode, stream) {
+        var description = episode.description || 'Описание для этой серии пока отсутствует в catalog.json.';
+        var poster = episode.poster || '';
+        var progress = readProgress(episode);
+        var progressText = '';
+
+        if (progress.percent >= 90) {
+            progressText = ' • просмотрено';
+        } else if (progress.time > 10) {
+            progressText = ' • сохранено ' + formatTime(progress.time);
+        }
+
+        var html =
+            '<div class="kkv1-info" style="padding:.4em .2em 1em;line-height:1.45">' +
+                (poster
+                    ? '<div style="margin-bottom:1em"><img src="' + escapeHtml(poster) + '" style="max-width:26em;max-height:14em;border-radius:.6em;object-fit:cover"></div>'
+                    : '') +
+                '<div style="font-size:1.1em;opacity:.86">' + escapeHtml(description) + '</div>' +
+                '<div style="margin-top:1em;opacity:.55;font-size:.86em">' +
+                    'Сезон ' + episode.season + ' • Серия ' + episode.episode +
+                    progressText +
+                    (stream ? ' • HLS доступен' : ' • поток пока не настроен') +
+                '</div>' +
+            '</div>';
+
+        return $(html);
+    }
+
+    function playEpisode(episode, sourceId, restart) {
+        var rule = streamRule(episode.season, sourceId);
+        var url = streamUrl(episode.season, episode.episode, sourceId);
+
+        if (!rule || !url) {
+            Lampa.Noty.show(
+                'Для ' + episode.season + ' сезона поток пока не настроен'
+            );
+            return;
+        }
+
+        if (restart) {
+            clearProgress(episode);
+        }
+
+        var all = [];
+        var season = seasonRecord(catalogCache, episode.season);
+
+        if (season && season.episodes) {
+            season.episodes.forEach(function (item) {
+                var itemUrl = streamUrl(item.season, item.episode, rule.id);
+
+                if (itemUrl) {
+                    all.push({
+                        title: item.title || (item.episode + ' серия'),
+                        url: itemUrl,
+                        season: item.season,
+                        episode: item.episode,
+                        img: item.poster || '',
+                        timeline: timelineForEpisode(item, false)
+                    });
+                }
+            });
+        }
+
+        var current = {
+            title: episode.title || (episode.episode + ' серия'),
+            url: url,
+            season: episode.season,
+            episode: episode.episode,
+            img: episode.poster || '',
+            timeline: timelineForEpisode(episode, !!restart)
+        };
+
+        try {
+            Lampa.Storage.set('kkv1_last', {
+                season: episode.season,
+                episode: episode.episode,
+                title: current.title,
+                source: rule.id
+            });
+        } catch (e) {}
+
+        Lampa.Player.play(current);
+        Lampa.Player.playlist(all.length ? all : [current]);
+    }
+
+    function showEpisodeInfo(episode, controller) {
+        var stream = streamSources(episode.season).length ? streamUrl(episode.season, episode.episode) : '';
+
+        Lampa.Modal.open({
+            title: episode.title || (episode.episode + ' серия'),
+            html: modalHtml(episode, stream),
+            size: 'medium',
+            onBack: function () {
+                if (controller) {
+                    setTimeout(function () {
+                        Lampa.Controller.toggle(controller);
+                    }, 0);
+                }
+            }
+        });
+    }
+
+    function openEpisodeActions(episode) {
+        var controller = '';
+        var sources = streamSources(episode.season);
+        var progress = readProgress(episode);
+        var canContinue = progress.time > 10 && progress.percent < 90;
+        var items = [];
+
+        try {
+            controller = Lampa.Controller.enabled().name;
+        } catch (e) {
+            controller = 'content';
+        }
+
+        function addPlayAction(source, restart) {
+            var sourceText = source.label ? (' • ' + source.label) : '';
+
+            items.push({
+                title:
+                    (restart
+                        ? '↺ Смотреть сначала'
+                        : (canContinue
+                            ? ('▶ Продолжить с ' + formatTime(progress.time))
+                            : '▶ Смотреть')) +
+                    sourceText,
+                action: 'play',
+                source: source.id,
+                restart: !!restart
+            });
+        }
+
+        if (sources.length) {
+            sources.forEach(function (source) {
+                addPlayAction(source, false);
+            });
+
+            if (canContinue) {
+                sources.forEach(function (source) {
+                    addPlayAction(source, true);
+                });
+            }
+        } else {
+            items.push({
+                title: 'Поток для ' + episode.season + ' сезона пока не настроен',
+                action: 'missing'
+            });
+        }
+
+        items.push({
+            title: 'О серии',
+            action: 'info'
+        });
+
+        Lampa.Select.show({
+            title: episode.title || (episode.episode + ' серия'),
+            items: items,
+
+            onSelect: function (item) {
+                if (!item) return;
+
+                if (item.action === 'play') {
+                    Lampa.Select.close();
+
+                    setTimeout(function () {
+                        playEpisode(
+                            episode,
+                            item.source,
+                            item.restart
+                        );
+                    }, 120);
+
+                    return;
+                }
+
+                if (item.action === 'info') {
+                    Lampa.Select.close();
+
+                    setTimeout(function () {
+                        showEpisodeInfo(episode, controller);
+                    }, 120);
+
+                    return;
+                }
+
+                if (item.action === 'missing') {
+                    Lampa.Noty.show(
+                        'Для ' + episode.season + ' сезона HLS пока не добавлен'
+                    );
+                }
+            },
+
+            onBack: function () {
+                if (controller) {
+                    setTimeout(function () {
+                        Lampa.Controller.toggle(controller);
+                    }, 0);
+                }
+            }
+        });
+    }
+
+    function pushSeason(season) {
+        Lampa.Activity.push({
+            component: COMPONENT,
+            title: SP_TITLE + ' • ' + season + ' сезон',
+            hub_mode: 'sp_episodes',
+            kk_season: season,
+            page: 1
+        });
+    }
+
+    function updateBackground(data) {
+        if (!data || !data.img) return;
+
+        try {
+            Lampa.Background.change(data.img);
+        } catch (e) {}
+    }
+
+    function buildSeasonLines(catalog) {
+        var items = [];
+
+        Object.keys(catalog.seasons || {})
+            .map(function (key) {
+                return seasonRecord(catalog, parseInt(key, 10));
+            })
+            .filter(Boolean)
+            .sort(function (a, b) {
+                return parseInt(a.season, 10) - parseInt(b.season, 10);
+            })
+            .forEach(function (seasonData) {
+                items.push(seasonCard(seasonData));
+            });
+
+        var groups = chunks(items, 7);
+
+        return groups.map(function (group, index) {
+            var first = index * 7 + 1;
+            var last = first + group.length - 1;
+
+            return {
+                title: 'Сезоны ' + first + '–' + last,
+                results: group,
+                params: {
+                    items: {
+                        align_left: true,
+                        view: 5
+                    }
+                }
+            };
+        });
+    }
+
+    function buildEpisodeLines(catalog, seasonNumber) {
+        var season = seasonRecord(catalog, seasonNumber);
+
+        if (!season || !season.episodes || !season.episodes.length) {
+            return [{
+                title: seasonNumber + ' сезон',
+                results: [{
+                    title: 'Каталог серий ещё не обновлён',
+                    name: 'Каталог серий ещё не обновлён',
+                    original_name: 'Запусти GitHub Action Update catalog',
+                    overview: '',
+                    kk_type: 'info',
+                    params: {
+                        style: {
+                            name: 'wide'
+                        }
+                    }
+                }]
+            }];
+        }
+
+        var episodes = season.episodes
+            .slice()
+            .sort(function (a, b) {
+                return parseInt(a.episode, 10) - parseInt(b.episode, 10);
+            })
+            .map(episodeCard);
+
+        var groups = chunks(episodes, 8);
+
+        return groups.map(function (group) {
+            var firstEpisode = group[0].kk_episode.episode;
+            var lastEpisode = group[group.length - 1].kk_episode.episode;
+
+            return {
+                title: group.length > 1
+                    ? ('Серии ' + firstEpisode + '–' + lastEpisode)
+                    : ('Серия ' + firstEpisode),
+                results: group,
+                params: {
+                    items: {
+                        align_left: true,
+                        view: 4
+                    }
+                }
+            };
+        });
+    }
+
+
+    function libraryCard(options) {
+        var cardData = {
+            title: options.title,
+            name: options.title,
+            original_name: options.subtitle || 'OK — открыть',
+            overview: options.overview || '',
+            img: options.img || '',
+            hub_show: options.id
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    openShow(options.id);
+                }
+            }
+        };
+
+        return cardData;
+    }
+
+    function buildLibraryLines(catalog) {
+        var southParkImage = '';
+        var firstSeason = seasonRecord(catalog, 1);
+
+        if (firstSeason) {
+            southParkImage = firstPoster(firstSeason);
+        }
+
+        return [{
+            title: 'Выберите сериал',
+            results: [
+                libraryCard({
+                    id: 'southpark',
+                    title: SP_TITLE,
+                    subtitle: '28 сезонов • открыть',
+                    overview: 'Южный Парк',
+                    img: southParkImage
+                }),
+                libraryCard({
+                    id: 'bigbang',
+                    title: BBT_TITLE,
+                    subtitle: '12 сезонов • ' + BBT_VOICE_NAME,
+                    overview: 'Теория большого взрыва',
+                    img: bbtPoster(1, 1)
+                })
+            ],
+            params: {
+                items: {
+                    align_left: true,
+                    view: 3
+                }
+            }
+        }];
+    }
+
+    function openShow(showId) {
+        if (showId === 'southpark') {
+            Lampa.Activity.push({
+                component: COMPONENT,
+                title: SP_TITLE,
+                hub_mode: 'sp_seasons',
+                page: 1
+            });
+            return;
+        }
+
+        if (showId === 'bigbang') {
+            Lampa.Activity.push({
+                component: COMPONENT,
+                title: BBT_TITLE,
+                hub_mode: 'bbt_seasons',
+                page: 1
+            });
+        }
+    }
+
+    function bbtPoster(season, episode) {
+        season = parseInt(season, 10) || 1;
+        episode = parseInt(episode, 10) || 1;
+
+        return 'https://big-bang-theory.page/wp-content/uploads/2020/07/' +
+            'teoriya-bolshogo-vzriva-' + season +
+            '-sezon-' + episode + '-seriya.jpg';
+    }
+
+    function bbtProgressKey(episode) {
+        return BBT_PROGRESS_PREFIX +
+            's' + pad2(episode.season) +
+            'e' + pad2(episode.episode);
+    }
+
+    function bbtReadProgress(episode) {
+        try {
+            return normalizeProgress(Lampa.Storage.get(bbtProgressKey(episode), {}));
+        } catch (e) {
+            return normalizeProgress({});
+        }
+    }
+
+    function bbtSaveProgress(episode, percent, time, duration) {
+        var data = normalizeProgress({
+            percent: percent,
+            time: time,
+            duration: duration,
+            updated_at: Date.now()
+        });
+
+        try {
+            Lampa.Storage.set(bbtProgressKey(episode), data);
+        } catch (e) {}
+
+        return data;
+    }
+
+    function bbtClearProgress(episode) {
+        try {
+            Lampa.Storage.set(bbtProgressKey(episode), {
+                percent: 0,
+                time: 0,
+                duration: 0,
+                updated_at: Date.now()
+            });
+        } catch (e) {}
+    }
+
+    function bbtTimelineForEpisode(episode, restart) {
+        var saved = restart ? normalizeProgress({}) : bbtReadProgress(episode);
+
+        return {
+            percent: saved.percent,
+            time: saved.time,
+            duration: saved.duration,
+            handler: function (percent, time, duration) {
+                bbtSaveProgress(episode, percent, time, duration);
+            }
+        };
+    }
+
+    function bbtProgressLabel(episode) {
+        var progress = bbtReadProgress(episode);
+
+        if (progress.percent >= 90) {
+            return {
+                type: 'watched',
+                text: '✓ просмотрено',
+                progress: progress
+            };
+        }
+
+        if (progress.time > 10) {
+            return {
+                type: 'continue',
+                text: '▶ продолжить с ' + formatTime(progress.time),
+                progress: progress
+            };
+        }
+
+        return {
+            type: 'new',
+            text: '▶ OK — смотреть',
+            progress: progress
+        };
+    }
+
+    function bbtEpisodeData(season, episode) {
+        return {
+            show: 'bigbang',
+            season: parseInt(season, 10) || 0,
+            episode: parseInt(episode, 10) || 0,
+            title: parseInt(episode, 10) + ' серия',
+            description: '',
+            poster: bbtPoster(season, episode)
+        };
+    }
+
+    function bbtSeasonCard(season) {
+        var count = BBT_SEASON_COUNTS[season] || 0;
+        var cardData = {
+            title: season + ' сезон',
+            name: season + ' сезон',
+            original_name: count + ' серий • ' + BBT_VOICE_NAME,
+            overview: BBT_TITLE + ' • ' + season + ' сезон',
+            img: bbtPoster(season, 1),
+            bbt_type: 'season',
+            bbt_season: season
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    pushBigBangSeason(season);
+                }
+            }
+        };
+
+        return cardData;
+    }
+
+    function bbtEpisodeCard(episode) {
+        var watchState = bbtProgressLabel(episode);
+        var cardData = {
+            title: episode.title,
+            name: episode.title,
+            original_name:
+                'Сезон ' + episode.season +
+                ' • Серия ' + episode.episode +
+                ' • ' + watchState.text,
+            overview: BBT_VOICE_NAME,
+            img: episode.poster || '',
+            bbt_type: 'episode',
+            bbt_episode: episode,
+            bbt_progress: watchState.progress
+        };
+
+        cardData.params = {
+            style: {
+                name: 'wide'
+            },
+            emit: {
+                onFocus: function () {
+                    updateBackground(cardData);
+                },
+                onlyEnter: function () {
+                    openBigBangEpisodeActions(episode);
+                }
+            }
+        };
+
+        return cardData;
+    }
+
+    function buildBigBangSeasonLines() {
+        var items = [];
+
+        Object.keys(BBT_SEASON_COUNTS).forEach(function (key) {
+            items.push(bbtSeasonCard(parseInt(key, 10)));
+        });
+
+        var groups = chunks(items, 6);
+
+        return groups.map(function (group, index) {
+            var first = index * 6 + 1;
+            var last = first + group.length - 1;
+
+            return {
+                title: 'Сезоны ' + first + '–' + last,
+                results: group,
+                params: {
+                    items: {
+                        align_left: true,
+                        view: 5
+                    }
+                }
+            };
+        });
+    }
+
+    function buildBigBangEpisodeLines(seasonNumber) {
+        var count = BBT_SEASON_COUNTS[seasonNumber] || 0;
+        var episodes = [];
+
+        for (var i = 1; i <= count; i++) {
+            episodes.push(bbtEpisodeCard(bbtEpisodeData(seasonNumber, i)));
+        }
+
+        var groups = chunks(episodes, 8);
+
+        return groups.map(function (group) {
+            var firstEpisode = group[0].bbt_episode.episode;
+            var lastEpisode = group[group.length - 1].bbt_episode.episode;
+
+            return {
+                title: group.length > 1
+                    ? ('Серии ' + firstEpisode + '–' + lastEpisode)
+                    : ('Серия ' + firstEpisode),
+                results: group,
+                params: {
+                    items: {
+                        align_left: true,
+                        view: 4
+                    }
+                }
+            };
+        });
+    }
+
+    function pushBigBangSeason(season) {
+        Lampa.Activity.push({
+            component: COMPONENT,
+            title: BBT_TITLE + ' • ' + season + ' сезон',
+            hub_mode: 'bbt_episodes',
+            kk_season: season,
+            page: 1
+        });
+    }
+
+    function bbtRequestUrl(base, episode) {
+        base = String(base || '').replace(/\/+$/, '');
+
+        return base +
+            '/s/' + BBT_SERIAL_ID +
+            '?season=' + encodeURIComponent(episode.season) +
+            '&episode=' + encodeURIComponent(episode.episode) +
+            '&voice=' + encodeURIComponent(BBT_VOICE_ID) +
+            '&vonly=true' +
+            '&posters=' + encodeURIComponent(episode.poster || bbtPoster(episode.season, episode.episode)) +
+            '&_=' + Date.now();
+    }
+
+    function normalizeM3u8Url(value) {
+        value = String(value || '')
+            .replace(/\\\//g, '/')
+            .replace(/&amp;/g, '&')
+            .trim();
+
+        if (/^https?:\/\/.+\.m3u8(?:[?#].*)?$/i.test(value)) {
+            return value;
+        }
+
+        return '';
+    }
+
+    function findM3u8InObject(value, depth) {
+        if (depth > 8 || value === null || typeof value === 'undefined') {
+            return '';
+        }
+
+        if (typeof value === 'string') {
+            var direct = normalizeM3u8Url(value);
+
+            if (direct) return direct;
+
+            try {
+                var parsedString = JSON.parse(value);
+
+                if (parsedString !== value) {
+                    var nestedString = findM3u8InObject(parsedString, depth + 1);
+                    if (nestedString) return nestedString;
+                }
+            } catch (e) {}
+
+            var match = value.match(/https?:\\?\/\\?\/[^"'<>\\\s]+?\.m3u8(?:\?[^"'<>\\\s]*)?/i);
+
+            return match ? normalizeM3u8Url(match[0]) : '';
+        }
+
+        if (typeof value !== 'object') return '';
+
+        var priority = [
+            'video_new',
+            'video',
+            'hls',
+            'stream',
+            'url',
+            'file',
+            'src',
+            'config',
+            'data',
+            'playerData'
+        ];
+
+        for (var i = 0; i < priority.length; i++) {
+            if (Object.prototype.hasOwnProperty.call(value, priority[i])) {
+                var preferred = findM3u8InObject(value[priority[i]], depth + 1);
+                if (preferred) return preferred;
+            }
+        }
+
+        for (var key in value) {
+            if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
+
+            var found = findM3u8InObject(value[key], depth + 1);
+            if (found) return found;
+        }
+
+        return '';
+    }
+
+    function extractBigBangStream(text) {
+        text = String(text || '').trim();
+
+        if (!text) return '';
+
+        var direct = normalizeM3u8Url(text);
+        if (direct) return direct;
+
+        try {
+            var json = JSON.parse(text);
+            var jsonUrl = findM3u8InObject(json, 0);
+
+            if (jsonUrl) return jsonUrl;
+        } catch (e) {}
+
+        var marker = text.indexOf('window.playerData');
+
+        if (marker >= 0) {
+            var firstBrace = text.indexOf('{', marker);
+            var lastBrace = text.lastIndexOf('}');
+
+            if (firstBrace >= 0 && lastBrace > firstBrace) {
+                try {
+                    var playerData = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+                    var playerUrl = findM3u8InObject(playerData, 0);
+
+                    if (playerUrl) return playerUrl;
+                } catch (e2) {}
+            }
+        }
+
+        var match = text.match(/https?:\\?\/\\?\/[^"'<>\\\s]+?\.m3u8(?:\?[^"'<>\\\s]*)?/i);
+
+        return match ? normalizeM3u8Url(match[0]) : '';
+    }
+
+    function resolveBigBangEpisode(episode, success, fail) {
+        var index = 0;
+        var lastError = null;
+
+        function next() {
+            if (index >= BBT_API_BASES.length) {
+                fail(lastError || new Error('resolver failed'));
+                return;
+            }
+
+            var base = BBT_API_BASES[index++];
+            var url = bbtRequestUrl(base, episode);
+
+            loadText(
+                url,
+                function (text) {
+                    var stream = extractBigBangStream(text);
+
+                    if (stream) {
+                        success(stream, base);
+                    } else {
+                        lastError = new Error('m3u8 not found in resolver response');
+                        next();
+                    }
+                },
+                function (error) {
+                    lastError = error || new Error('network error');
+                    next();
+                }
+            );
+        }
+
+        next();
+    }
+
+    function playBigBangEpisode(episode, restart) {
+        if (restart) {
+            bbtClearProgress(episode);
+        }
+
+        resolveBigBangEpisode(
+            episode,
+            function (url) {
+                var current = {
+                    title: BBT_TITLE + ' • ' + episode.season + 'x' + pad2(episode.episode),
+                    url: url,
+                    season: episode.season,
+                    episode: episode.episode,
+                    img: episode.poster || '',
+                    timeline: bbtTimelineForEpisode(episode, !!restart)
+                };
+
+                try {
+                    Lampa.Storage.set('bbtv1_last', {
+                        season: episode.season,
+                        episode: episode.episode,
+                        title: current.title,
+                        voice: BBT_VOICE_ID
+                    });
+                } catch (e) {}
+
+                Lampa.Player.play(current);
+                Lampa.Player.playlist([current]);
+            },
+            function (error) {
+                try {
+                    console.error('[Serials Hub][BBT resolver]', error);
+                } catch (e) {}
+
+                Lampa.Noty.show(
+                    'ТБВ: не удалось получить свежий поток. Открой Network и пришли ответ запроса /s/' +
+                    BBT_SERIAL_ID
+                );
+            }
+        );
+    }
+
+    function showBigBangInfo(episode, controller) {
+        var progress = bbtReadProgress(episode);
+        var stateText = '';
+
+        if (progress.percent >= 90) {
+            stateText = ' • просмотрено';
+        } else if (progress.time > 10) {
+            stateText = ' • сохранено ' + formatTime(progress.time);
+        }
+
+        var html =
+            '<div style="padding:.4em .2em 1em;line-height:1.45">' +
+                (episode.poster
+                    ? '<div style="margin-bottom:1em"><img src="' + escapeHtml(episode.poster) + '" style="max-width:26em;max-height:14em;border-radius:.6em;object-fit:cover"></div>'
+                    : '') +
+                '<div style="font-size:1.1em;opacity:.86">' +
+                    escapeHtml(BBT_TITLE + ' • ' + BBT_VOICE_NAME) +
+                '</div>' +
+                '<div style="margin-top:1em;opacity:.55;font-size:.86em">' +
+                    'Сезон ' + episode.season +
+                    ' • Серия ' + episode.episode +
+                    stateText +
+                '</div>' +
+            '</div>';
+
+        Lampa.Modal.open({
+            title: episode.title,
+            html: $(html),
+            size: 'medium',
+            onBack: function () {
+                if (controller) {
+                    setTimeout(function () {
+                        Lampa.Controller.toggle(controller);
+                    }, 0);
+                }
+            }
+        });
+    }
+
+    function openBigBangEpisodeActions(episode) {
+        var controller = '';
+        var progress = bbtReadProgress(episode);
+        var canContinue = progress.time > 10 && progress.percent < 90;
+        var items = [];
+
+        try {
+            controller = Lampa.Controller.enabled().name;
+        } catch (e) {
+            controller = 'content';
+        }
+
+        items.push({
+            title: canContinue
+                ? ('▶ Продолжить с ' + formatTime(progress.time) + ' • ' + BBT_VOICE_NAME)
+                : ('▶ Смотреть • ' + BBT_VOICE_NAME),
+            action: 'play',
+            restart: false
+        });
+
+        if (canContinue) {
+            items.push({
+                title: '↺ Смотреть сначала • ' + BBT_VOICE_NAME,
+                action: 'play',
+                restart: true
+            });
+        }
+
+        items.push({
+            title: 'О серии',
+            action: 'info'
+        });
+
+        Lampa.Select.show({
+            title: BBT_TITLE + ' • ' + episode.season + 'x' + pad2(episode.episode),
+            items: items,
+
+            onSelect: function (item) {
+                if (!item) return;
+
+                if (item.action === 'play') {
+                    Lampa.Select.close();
+
+                    setTimeout(function () {
+                        playBigBangEpisode(episode, item.restart);
+                    }, 120);
+
+                    return;
+                }
+
+                if (item.action === 'info') {
+                    Lampa.Select.close();
+
+                    setTimeout(function () {
+                        showBigBangInfo(episode, controller);
+                    }, 120);
+                }
+            },
+
+            onBack: function () {
+                if (controller) {
+                    setTimeout(function () {
+                        Lampa.Controller.toggle(controller);
+                    }, 0);
+                }
+            }
+        });
+    }
+
+    function NativeComponent(object) {
+        var comp = Lampa.Maker.make('Main', object || {});
+        var mode = (object && object.hub_mode) || 'library';
+        var seasonNumber = parseInt(object && object.kk_season, 10) || 0;
+
+        comp.use({
+            onCreate: function () {
+                var self = this;
+
+                self.activity.loader(true);
+
+                function finish(lines) {
+                    self.activity.loader(false);
+                    self.build(lines);
+                }
+
+                if (mode === 'bbt_seasons') {
+                    finish(buildBigBangSeasonLines());
+                    return;
+                }
+
+                if (mode === 'bbt_episodes') {
+                    finish(buildBigBangEpisodeLines(seasonNumber));
+                    return;
+                }
+
+                loadCatalog(function (catalog, fallback) {
+                    var lines;
+
+                    if (mode === 'sp_episodes') {
+                        lines = buildEpisodeLines(catalog, seasonNumber);
+                    } else if (mode === 'sp_seasons') {
+                        lines = buildSeasonLines(catalog);
+                    } else {
+                        lines = buildLibraryLines(catalog);
+                    }
+
+                    finish(lines);
+
+                    if (fallback && mode === 'sp_episodes') {
+                        Lampa.Noty.show('catalog.json пока недоступен');
+                    }
+                });
+            }
+        });
+
+        return comp;
+    }
+
+    function openCatalog() {
+        Lampa.Activity.push({
+            component: COMPONENT,
+            title: TITLE,
+            hub_mode: 'library',
+            page: 1
+        });
+    }
+
+    function init() {
+        if (typeof Lampa === 'undefined') {
+            setTimeout(init, 300);
+            return;
+        }
+
+        if (window[PLUGIN_ID + '_ready']) return;
+
+        if (appDigital() < 300 || !Lampa.Maker) {
+            Lampa.Noty.show('Плагину нужна Lampa 3.x');
+            return;
+        }
+
+        window[PLUGIN_ID + '_ready'] = true;
+
+        Lampa.Component.add(COMPONENT, NativeComponent);
+
+        if (Lampa.Menu && Lampa.Menu.addButton) {
+            Lampa.Menu.addButton(
+                ICON,
+                TITLE,
+                openCatalog
+            );
+        }
+
+        try {
+            if (Lampa.Manifest && Lampa.Manifest.plugins) {
+                Lampa.Manifest.plugins[PLUGIN_ID] = {
+                    type: 'other',
+                    version: VERSION,
+                    name: TITLE,
+                    description: 'South Park + The Big Bang Theory • Maker UI • resume playback'
+                };
+            }
+        } catch (e) {}
+    }
+
+    if (window.appready) {
+        init();
+    } else if (typeof Lampa !== 'undefined' && Lampa.Listener) {
+        Lampa.Listener.follow('app', function (event) {
+            if (event.type === 'ready') init();
+        });
+    } else {
+        setTimeout(init, 500);
+    }
+})();
