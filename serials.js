@@ -1,6 +1,6 @@
 /*
  * Serials Hub for Lampa 3.x
- * v0.1.0
+ * v0.2.0
  *
  * Shows:
  *   - South Park: stable v1.4 logic + catalog.json + direct HLS rules
@@ -14,7 +14,7 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.1.0';
+    var VERSION = '0.2.0';
     var TITLE = 'Сериалы';
 
     var SP_TITLE = 'Южный Парк';
@@ -27,7 +27,6 @@
     var BBT_PROGRESS_PREFIX = 'bbtv1_progress_';
 
     var BBT_API_BASES = [
-        'https://apiplayer.gdyrin.store/v1',
         'https://kalarona.org'
     ];
 
@@ -315,9 +314,14 @@
 
     function requestFallback(url, success, fail) {
         try {
-            var network = Lampa.Network
-                ? new Lampa.Network()
-                : new Lampa.Reguest();
+            var NetworkClass = Lampa.Request || Lampa.Reguest;
+
+            if (!NetworkClass) {
+                fail(new Error('Lampa Request API unavailable'));
+                return;
+            }
+
+            var network = new NetworkClass();
 
             network.silent(
                 url,
@@ -1208,39 +1212,175 @@
         return match ? normalizeM3u8Url(match[0]) : '';
     }
 
-    function resolveBigBangEpisode(episode, success, fail) {
-        var index = 0;
-        var lastError = null;
+    function bbtExtractFromPlayerData(data) {
+        if (!data) return '';
 
-        function next() {
-            if (index >= BBT_API_BASES.length) {
-                fail(lastError || new Error('resolver failed'));
+        try {
+            if (data.config) {
+                var fresh =
+                    normalizeM3u8Url(data.config.video_new) ||
+                    normalizeM3u8Url(data.config.video);
+
+                if (fresh) return fresh;
+            }
+        } catch (e) {}
+
+        return findM3u8InObject(data, 0);
+    }
+
+    function resolveBigBangByScript(episode, success, fail) {
+        var url = bbtRequestUrl('https://kalarona.org', episode);
+        var script = document.createElement('script');
+        var previousPlayerData = window.playerData;
+        var finished = false;
+        var timeout = null;
+
+        function cleanup(restore) {
+            if (timeout) clearTimeout(timeout);
+
+            script.onload = null;
+            script.onerror = null;
+
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+
+            if (restore) {
+                try {
+                    if (typeof previousPlayerData === 'undefined') {
+                        delete window.playerData;
+                    } else {
+                        window.playerData = previousPlayerData;
+                    }
+                } catch (e) {}
+            }
+        }
+
+        function done(urlValue) {
+            if (finished) return;
+            finished = true;
+            cleanup(true);
+            success(urlValue, 'script');
+        }
+
+        function bad(error) {
+            if (finished) return;
+            finished = true;
+            cleanup(true);
+            fail(error || new Error('script resolver failed'));
+        }
+
+        try {
+            /*
+             * /s/486 responses from this player expose window.playerData.
+             * Loading it as a classic script avoids XHR/fetch CORS restrictions.
+             */
+            window.playerData = null;
+
+            script.async = true;
+            script.src = url;
+
+            script.onload = function () {
+                var stream = bbtExtractFromPlayerData(window.playerData);
+
+                if (stream) {
+                    done(stream);
+                } else {
+                    bad(new Error('playerData loaded, m3u8 missing'));
+                }
+            };
+
+            script.onerror = function () {
+                bad(new Error('script resolver load error'));
+            };
+
+            timeout = setTimeout(function () {
+                bad(new Error('script resolver timeout'));
+            }, 12000);
+
+            (document.head || document.documentElement).appendChild(script);
+        } catch (e) {
+            bad(e);
+        }
+    }
+
+    function resolveBigBangNative(episode, success, fail) {
+        try {
+            var NetworkClass = Lampa.Request || Lampa.Reguest;
+
+            if (!NetworkClass) {
+                fail(new Error('Lampa Request API unavailable'));
                 return;
             }
 
-            var base = BBT_API_BASES[index++];
-            var url = bbtRequestUrl(base, episode);
+            var network = new NetworkClass();
+            var url = bbtRequestUrl('https://kalarona.org', episode);
+            var method = typeof network.native === 'function' ? 'native' : 'silent';
 
-            loadText(
+            network[method](
                 url,
-                function (text) {
-                    var stream = extractBigBangStream(text);
+                function (data) {
+                    var stream = '';
+
+                    if (typeof data === 'string') {
+                        stream = extractBigBangStream(data);
+                    } else {
+                        stream = bbtExtractFromPlayerData(data);
+                    }
 
                     if (stream) {
-                        success(stream, base);
+                        success(stream, method);
                     } else {
-                        lastError = new Error('m3u8 not found in resolver response');
-                        next();
+                        fail(new Error('native response has no m3u8'));
                     }
                 },
                 function (error) {
-                    lastError = error || new Error('network error');
-                    next();
+                    fail(error || new Error('native resolver failed'));
+                },
+                false,
+                {
+                    dataType: 'text',
+                    cache: false
                 }
             );
+        } catch (e) {
+            fail(e);
         }
+    }
 
-        next();
+    function resolveBigBangEpisode(episode, success, fail) {
+        var errors = [];
+
+        resolveBigBangByScript(
+            episode,
+            function (stream, via) {
+                success(stream, via);
+            },
+            function (scriptError) {
+                errors.push(scriptError);
+
+                resolveBigBangNative(
+                    episode,
+                    function (stream, via) {
+                        success(stream, via);
+                    },
+                    function (nativeError) {
+                        errors.push(nativeError);
+
+                        try {
+                            console.error(
+                                '[Serials Hub][BBT resolver v0.2]',
+                                errors.map(function (e) {
+                                    return e && e.message ? e.message : String(e);
+                                })
+                            );
+                        } catch (e) {}
+
+                        fail(nativeError || scriptError || new Error('resolver failed'));
+                    }
+                );
+            }
+        );
     }
 
     function playBigBangEpisode(episode, restart) {
@@ -1278,8 +1418,7 @@
                 } catch (e) {}
 
                 Lampa.Noty.show(
-                    'ТБВ: не удалось получить свежий поток. Открой Network и пришли ответ запроса /s/' +
-                    BBT_SERIAL_ID
+                    'ТБВ: resolver v0.2 не получил m3u8. Пришли строки консоли с [Serials Hub][BBT resolver v0.2]'
                 );
             }
         );
@@ -1482,7 +1621,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + The Big Bang Theory • Maker UI • resume playback'
+                    description: 'South Park + The Big Bang Theory • Maker UI • BBT script/native resolver v0.2'
                 };
             }
         } catch (e) {}
