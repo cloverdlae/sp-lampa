@@ -14,7 +14,7 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.5.3';
+    var VERSION = '0.5.4';
     var TITLE = 'Cloverdale';
 
     var CLOVERDALE_BG = '#292929';
@@ -80,8 +80,8 @@
     }
 
     function injectCloverdaleStyle() {
-        if (document.getElementById('cloverdale-style-v053')) return;
-        var oldStyle = document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
+        if (document.getElementById('cloverdale-style-v054')) return;
+        var oldStyle = document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
         if (oldStyle && oldStyle.parentNode) oldStyle.parentNode.removeChild(oldStyle);
         var css = '' +
         '.cloverdale-screen{background:' + CLOVERDALE_BG + ' !important;}' +
@@ -91,12 +91,12 @@
         '.cloverdale-screen .card__title{font-weight:600;}' +
         '.cloverdale-library .card{max-width:16em;margin-right:1.25em;}' +
         '.cloverdale-library .card__view{aspect-ratio:3/4;height:auto !important;}' +
-        '.cloverdale-grid .card{margin-right:1em;margin-bottom:.9em;}' +'.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +
+        '.cloverdale-grid .card{margin-right:1em;margin-bottom:.9em;}' +'.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +'.cloverdale-episodes .card__view{aspect-ratio:16/9;height:auto !important;}' +'.cloverdale-episodes .card{margin-right:1em;margin-bottom:1em;}' +
         
         '.cloverdale-bottom-space{height:8em;min-height:8em;pointer-events:none;}' +
         '@media(max-width:900px){.cloverdale-bottom-space{height:11em;min-height:11em}}';
         var style = document.createElement('style');
-        style.id = 'cloverdale-style-v053';
+        style.id = 'cloverdale-style-v054';
         style.textContent = css;
         document.head.appendChild(style);
     }
@@ -107,7 +107,10 @@
             var render = activity.render();
             render.addClass('cloverdale-screen');
             if (mode === 'library') render.addClass('cloverdale-library');
-            else render.addClass('cloverdale-grid');
+            else {
+                render.addClass('cloverdale-grid');
+                if (mode === 'sp_episodes' || mode === 'fg_episodes') render.addClass('cloverdale-episodes');
+            }
             var scrollTarget = render.find('.scroll__body').first();
             if (!scrollTarget.length) scrollTarget = render.find('.activity__body').first();
             if (scrollTarget.length && !scrollTarget.children('.cloverdale-bottom-space').length) {
@@ -523,15 +526,18 @@
     function episodeDisplayTitle(title, episodeNumber, showTitle) {
         var raw = String(title || '').replace(/\s+/g, ' ').trim();
         var names = [showTitle, SP_TITLE, FG_TITLE, 'South Park', 'Family Guy'];
+
         names.forEach(function (name) {
             if (!name) return;
             var escaped = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             raw = raw.replace(new RegExp('^' + escaped + '\\s*[:\\-–—|•]?\\s*', 'i'), '');
         });
+
         raw = raw.replace(/^Серия\s*\d+\s*[:\-–—|•]?\s*/i, '');
         raw = raw.replace(/^\d+\s*серия\s*[:\-–—|•]?\s*/i, '');
-        var base = 'Серия ' + episodeNumber;
-        return raw ? (base + ' — ' + raw) : base;
+        raw = raw.replace(/^Episode\s*\d+\s*[:\-–—|•]?\s*/i, '');
+
+        return String(episodeNumber) + '. ' + (raw || 'Без названия');
     }
 
     function episodeCard(episode) {
@@ -540,13 +546,13 @@
         var tm = tmdbEpisodeRecord(SP_TMDB_ID, episode.season, episode.episode);
 
         var cardData = {
-            title: episodeDisplayTitle(episode.title, episode.episode, SP_TITLE),
-            name: episodeDisplayTitle(episode.title, episode.episode, SP_TITLE),
+            title: episodeDisplayTitle((tm && tm.name) || episode.title, episode.episode, SP_TITLE),
+            name: episodeDisplayTitle((tm && tm.name) || episode.title, episode.episode, SP_TITLE),
             original_name:
                 'Сезон ' + episode.season +
                 ' • Серия ' + episode.episode +
                 (playable ? ' • ' + watchState.text : ' • OK — действия'),
-            overview: episode.description || '',
+            overview: (tm && tm.overview) || episode.description || '',
             img: (tm && tm.still_path) ? tmdbImage(tm.still_path, 'w780') : episode.poster || '',
             kk_type: 'episode',
             kk_episode: episode,
@@ -1022,7 +1028,7 @@
         var meta = fgMeta(seasonNumber, episodeNumber);
         return {
             show: 'familyguy', season: seasonNumber, episode: episodeNumber,
-            title: (meta && meta.title) ? meta.title : ('Серия ' + episodeNumber),
+            title: (meta && meta.title) ? meta.title : '',
             description: meta ? meta.description : '',
             poster: (meta && meta.image) ? meta.image : FG_POSTER,
             voices: fgVoices(seasonNumber, episodeNumber)
@@ -1233,7 +1239,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + Гриффины • Cloverdale • v0.5.3'
+                    description: 'South Park + Гриффины • Cloverdale • v0.5.4'
                 };
             }
         } catch (e) {}
