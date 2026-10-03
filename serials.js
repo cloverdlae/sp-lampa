@@ -1,11 +1,9 @@
 /*
  * Serials Hub for Lampa 3.x
- * v0.4.0
+ * v0.4.1
  *
  * Shows:
  *   - South Park: stable v1.4 logic + catalog.json + direct HLS rules
- *   - The Big Bang Theory: fresh namy.ws playlist resolver + audio policy
- *
  *   - Family Guy: direct authorized HLS catalog
  *
  * Architecture:
@@ -16,32 +14,11 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.4.0';
+    var VERSION = '0.4.1';
     var TITLE = 'Cloverdale';
 
     var SP_TITLE = 'Южный Парк';
     var PROGRESS_PREFIX = 'kkv1_progress_';
-
-    var BBT_TITLE = 'Теория большого взрыва';
-    var BBT_VOICE_NAME = 'Paramount comedy';
-    var BBT_FRANCHISE_ID = 285;
-    var BBT_PROGRESS_PREFIX = 'bbtv1_progress_';
-
-
-    var BBT_SEASON_COUNTS = {
-        1: 17,
-        2: 23,
-        3: 23,
-        4: 24,
-        5: 24,
-        6: 24,
-        7: 24,
-        8: 24,
-        9: 24,
-        10: 24,
-        11: 24,
-        12: 24
-    };
 
     var FG_TITLE = 'Гриффины';
     var FG_PROGRESS_PREFIX = 'fgv1_progress_';
@@ -842,13 +819,6 @@
                     img: southParkImage
                 }),
                 libraryCard({
-                    id: 'bigbang',
-                    title: BBT_TITLE,
-                    subtitle: '12 сезонов • Paramount comedy',
-                    overview: 'Теория большого взрыва',
-                    img: bbtPoster(1, 1)
-                }),
-                libraryCard({
                     id: 'familyguy',
                     title: FG_TITLE,
                     subtitle: '24 сезона • 4 озвучки',
@@ -859,7 +829,7 @@
             params: {
                 items: {
                     align_left: true,
-                    view: 3
+                    view: 2
                 }
             }
         }];
@@ -876,16 +846,6 @@
             return;
         }
 
-        if (showId === 'bigbang') {
-            Lampa.Activity.push({
-                component: COMPONENT,
-                title: BBT_TITLE,
-                hub_mode: 'bbt_seasons',
-                page: 1
-            });
-            return;
-        }
-
         if (showId === 'familyguy') {
             Lampa.Activity.push({
                 component: COMPONENT,
@@ -894,545 +854,6 @@
                 page: 1
             });
         }
-    }
-
-    function bbtPoster(season, episode) {
-        season = parseInt(season, 10) || 1;
-        episode = parseInt(episode, 10) || 1;
-
-        return 'https://big-bang-theory.page/wp-content/uploads/2020/07/' +
-            'teoriya-bolshogo-vzriva-' + season +
-            '-sezon-' + episode + '-seriya.jpg';
-    }
-
-    function bbtProgressKey(episode) {
-        return BBT_PROGRESS_PREFIX +
-            's' + pad2(episode.season) +
-            'e' + pad2(episode.episode);
-    }
-
-    function bbtReadProgress(episode) {
-        try {
-            return normalizeProgress(Lampa.Storage.get(bbtProgressKey(episode), {}));
-        } catch (e) {
-            return normalizeProgress({});
-        }
-    }
-
-    function bbtSaveProgress(episode, percent, time, duration) {
-        var data = normalizeProgress({
-            percent: percent,
-            time: time,
-            duration: duration,
-            updated_at: Date.now()
-        });
-
-        try {
-            Lampa.Storage.set(bbtProgressKey(episode), data);
-        } catch (e) {}
-
-        return data;
-    }
-
-    function bbtClearProgress(episode) {
-        try {
-            Lampa.Storage.set(bbtProgressKey(episode), {
-                percent: 0,
-                time: 0,
-                duration: 0,
-                updated_at: Date.now()
-            });
-        } catch (e) {}
-    }
-
-    function bbtTimelineForEpisode(episode, restart) {
-        var saved = restart ? normalizeProgress({}) : bbtReadProgress(episode);
-
-        return {
-            percent: saved.percent,
-            time: saved.time,
-            duration: saved.duration,
-            handler: function (percent, time, duration) {
-                bbtSaveProgress(episode, percent, time, duration);
-            }
-        };
-    }
-
-    function bbtProgressLabel(episode) {
-        var progress = bbtReadProgress(episode);
-
-        if (progress.percent >= 90) {
-            return {
-                type: 'watched',
-                text: '✓ просмотрено',
-                progress: progress
-            };
-        }
-
-        if (progress.time > 10) {
-            return {
-                type: 'continue',
-                text: '▶ продолжить с ' + formatTime(progress.time),
-                progress: progress
-            };
-        }
-
-        return {
-            type: 'new',
-            text: '▶ OK — смотреть',
-            progress: progress
-        };
-    }
-
-    function bbtEpisodeData(season, episode) {
-        return {
-            show: 'bigbang',
-            season: parseInt(season, 10) || 0,
-            episode: parseInt(episode, 10) || 0,
-            title: parseInt(episode, 10) + ' серия',
-            description: '',
-            poster: bbtPoster(season, episode)
-        };
-    }
-
-    function bbtSeasonCard(season) {
-        var count = BBT_SEASON_COUNTS[season] || 0;
-        var cardData = {
-            title: season + ' сезон',
-            name: season + ' сезон',
-            original_name: count + ' серий • Paramount comedy',
-            overview: BBT_TITLE + ' • ' + season + ' сезон',
-            img: bbtPoster(season, 1),
-            bbt_type: 'season',
-            bbt_season: season
-        };
-
-        cardData.params = {
-            style: {
-                name: 'wide'
-            },
-            emit: {
-                onFocus: function () {
-                    updateBackground(cardData);
-                },
-                onlyEnter: function () {
-                    pushBigBangSeason(season);
-                }
-            }
-        };
-
-        return cardData;
-    }
-
-    function bbtEpisodeCard(episode) {
-        var watchState = bbtProgressLabel(episode);
-        var cardData = {
-            title: episode.title,
-            name: episode.title,
-            original_name:
-                'Сезон ' + episode.season +
-                ' • Серия ' + episode.episode +
-                ' • ' + watchState.text,
-            overview: 'Paramount comedy • Кураж-Бамбей при наличии',
-            img: episode.poster || '',
-            bbt_type: 'episode',
-            bbt_episode: episode,
-            bbt_progress: watchState.progress
-        };
-
-        cardData.params = {
-            style: {
-                name: 'wide'
-            },
-            emit: {
-                onFocus: function () {
-                    updateBackground(cardData);
-                },
-                onlyEnter: function () {
-                    openBigBangEpisodeActions(episode);
-                }
-            }
-        };
-
-        return cardData;
-    }
-
-    function buildBigBangSeasonLines() {
-        var items = [];
-
-        Object.keys(BBT_SEASON_COUNTS).forEach(function (key) {
-            items.push(bbtSeasonCard(parseInt(key, 10)));
-        });
-
-        var groups = chunks(items, 6);
-
-        return groups.map(function (group, index) {
-            var first = index * 6 + 1;
-            var last = first + group.length - 1;
-
-            return {
-                title: 'Сезоны ' + first + '–' + last,
-                results: group,
-                params: {
-                    items: {
-                        align_left: true,
-                        view: 5
-                    }
-                }
-            };
-        });
-    }
-
-    function buildBigBangEpisodeLines(seasonNumber) {
-        var count = BBT_SEASON_COUNTS[seasonNumber] || 0;
-        var episodes = [];
-
-        for (var i = 1; i <= count; i++) {
-            episodes.push(bbtEpisodeCard(bbtEpisodeData(seasonNumber, i)));
-        }
-
-        var groups = chunks(episodes, 8);
-
-        return groups.map(function (group) {
-            var firstEpisode = group[0].bbt_episode.episode;
-            var lastEpisode = group[group.length - 1].bbt_episode.episode;
-
-            return {
-                title: group.length > 1
-                    ? ('Серии ' + firstEpisode + '–' + lastEpisode)
-                    : ('Серия ' + firstEpisode),
-                results: group,
-                params: {
-                    items: {
-                        align_left: true,
-                        view: 4
-                    }
-                }
-            };
-        });
-    }
-
-    function pushBigBangSeason(season) {
-        Lampa.Activity.push({
-            component: COMPONENT,
-            title: BBT_TITLE + ' • ' + season + ' сезон',
-            hub_mode: 'bbt_episodes',
-            kk_season: season,
-            page: 1
-        });
-    }
-
-    function bbtRequestUrl(episode) {
-        return 'https://api.namy.ws/embed/movie/' + BBT_FRANCHISE_ID +
-            '?season=' + encodeURIComponent(episode.season) +
-            '&episode=' + encodeURIComponent(episode.episode) +
-            '&_=' + Date.now();
-    }
-
-    function bbtUnescapeJsString(value) {
-        return String(value || '')
-            .replace(/\\\//g, '/')
-            .replace(/\\u0026/gi, '&')
-            .replace(/&amp;/g, '&');
-    }
-
-    function bbtExtractLastCdnSuffix(html) {
-        var re = /fd4bd5fa\s*=\s*["']([^"']+)["']/g;
-        var match;
-        var last = '';
-
-        while ((match = re.exec(html))) {
-            last = match[1] || last;
-        }
-
-        return last;
-    }
-
-    function bbtAppendCdnSuffix(url, suffix) {
-        if (!suffix || !url) return url;
-        if (url.indexOf('&' + suffix) >= 0 || url.indexOf('?' + suffix) >= 0) return url;
-        return url + (url.indexOf('?') >= 0 ? '&' : '?') + suffix;
-    }
-
-    function bbtExtractJsonStringArray(block, key) {
-        var re = new RegExp('"' + key + '"\\s*:\\s*\\[([^\\]]*)\\]', 'i');
-        var match = block.match(re);
-        if (!match) return [];
-        try { return JSON.parse('[' + match[1] + ']'); } catch (e) { return []; }
-    }
-
-    function bbtPreferredVoice(names) {
-        names = names || [];
-
-        for (var i = 0; i < names.length; i++) {
-            if (/кураж[\s\-–—]*бамбей/i.test(String(names[i] || ''))) return String(names[i]);
-        }
-
-        for (var j = 0; j < names.length; j++) {
-            if (/^paramount\s*comedy$/i.test(String(names[j] || '').trim())) return String(names[j]);
-        }
-
-        for (var k = 0; k < names.length; k++) {
-            if (/paramount\s*comedy/i.test(String(names[k] || '')) && !/укр|ukr|ua/i.test(String(names[k] || ''))) {
-                return String(names[k]);
-            }
-        }
-
-        return names.length ? String(names[0]) : 'авто';
-    }
-
-    function bbtFindSeasonBlock(html, season) {
-        var marker = new RegExp('"season"\\s*:\\s*' + parseInt(season, 10) + '\\s*,', 'g');
-        var match;
-
-        while ((match = marker.exec(html))) {
-            var start = match.index;
-            var next = /"season"\s*:\s*\d+\s*,/g;
-            next.lastIndex = marker.lastIndex;
-            var nextMatch = next.exec(html);
-            var end = nextMatch ? nextMatch.index : html.length;
-            var block = html.slice(start, end);
-            if (/"episodes"\s*:\s*\[/.test(block)) return block;
-        }
-
-        return '';
-    }
-
-    function bbtFindEpisodeBlock(seasonBlock, episode) {
-        var marker = new RegExp('"episode"\\s*:\\s*"?' + parseInt(episode, 10) + '"?\\s*,', 'g');
-        var match = marker.exec(seasonBlock);
-        if (!match) return '';
-
-        var start = match.index;
-        var next = /"episode"\s*:\s*"?\d+"?\s*,/g;
-        next.lastIndex = marker.lastIndex;
-        var nextMatch = next.exec(seasonBlock);
-        var end = nextMatch ? nextMatch.index : seasonBlock.length;
-        return seasonBlock.slice(start, end);
-    }
-
-    function bbtParseEpisode(html, episode) {
-        html = String(html || '');
-        if (!html) throw new Error('empty HTML');
-
-        var seasonBlock = bbtFindSeasonBlock(html, episode.season);
-        if (!seasonBlock) throw new Error('season block not found: ' + episode.season);
-
-        var episodeBlock = bbtFindEpisodeBlock(seasonBlock, episode.episode);
-        if (!episodeBlock) throw new Error('episode block not found: ' + episode.season + 'x' + episode.episode);
-
-        var hlsMatch = episodeBlock.match(/"hls"\s*:\s*"([^"]+)"/i);
-        if (!hlsMatch) throw new Error('HLS not found');
-
-        var hls = bbtUnescapeJsString(hlsMatch[1]);
-        var names = bbtExtractJsonStringArray(episodeBlock, 'names');
-        var order = bbtExtractJsonStringArray(episodeBlock, 'order');
-        var durationMatch = episodeBlock.match(/"duration"\s*:\s*([0-9.]+)/i);
-        var suffix = bbtExtractLastCdnSuffix(html);
-
-        return {
-            hls: bbtAppendCdnSuffix(hls, suffix),
-            audioNames: names,
-            audioOrder: order,
-            preferredVoice: bbtPreferredVoice(names),
-            duration: durationMatch ? parseFloat(durationMatch[1]) : 0
-        };
-    }
-
-    function resolveBigBangEpisode(episode, success, fail) {
-        try {
-            var NetworkClass = Lampa.Request || Lampa.Reguest;
-            if (!NetworkClass) {
-                fail(new Error('Lampa Request API unavailable'));
-                return;
-            }
-
-            var network = new NetworkClass();
-            var url = bbtRequestUrl(episode);
-            var method = typeof network.native === 'function' ? 'native' : 'silent';
-
-            network[method](
-                url,
-                function (data) {
-                    try {
-                        var html = typeof data === 'string' ? data : String(data || '');
-                        var parsed = bbtParseEpisode(html, episode);
-
-                        try {
-                            console.log('[Cloverdale][BBT]', {
-                                season: episode.season,
-                                episode: episode.episode,
-                                via: method,
-                                voice: parsed.preferredVoice,
-                                audioNames: parsed.audioNames,
-                                audioOrder: parsed.audioOrder,
-                                hls: parsed.hls
-                            });
-                        } catch (e) {}
-
-                        success(parsed.hls, parsed);
-                    } catch (parseError) {
-                        fail(parseError);
-                    }
-                },
-                function (error) {
-                    fail(error || new Error('BBT network error'));
-                },
-                false,
-                { dataType: 'text', cache: false, timeout: 15000 }
-            );
-        } catch (e) {
-            fail(e);
-        }
-    }
-
-    function playBigBangEpisode(episode, restart) {
-        if (restart) {
-            bbtClearProgress(episode);
-        }
-
-        resolveBigBangEpisode(
-            episode,
-            function (url, resolved) {
-                var current = {
-                    title: BBT_TITLE + ' • ' + episode.season + 'x' + pad2(episode.episode),
-                    url: url,
-                    season: episode.season,
-                    episode: episode.episode,
-                    img: episode.poster || '',
-                    timeline: bbtTimelineForEpisode(episode, !!restart)
-                };
-
-                try {
-                    Lampa.Storage.set('bbtv1_last', {
-                        season: episode.season,
-                        episode: episode.episode,
-                        title: current.title,
-                        voice: resolved && resolved.preferredVoice ? resolved.preferredVoice : BBT_VOICE_NAME
-                    });
-                } catch (e) {}
-
-                Lampa.Player.play(current);
-                Lampa.Player.playlist([current]);
-            },
-            function (error) {
-                try {
-                    console.error('[Cloverdale][BBT resolver]', error);
-                } catch (e) {}
-
-                Lampa.Noty.show(
-                    'ТБВ: не удалось получить свежий плейлист. Смотри [Cloverdale][BBT] в консоли.'
-                );
-            }
-        );
-    }
-
-    function showBigBangInfo(episode, controller) {
-        var progress = bbtReadProgress(episode);
-        var stateText = '';
-
-        if (progress.percent >= 90) {
-            stateText = ' • просмотрено';
-        } else if (progress.time > 10) {
-            stateText = ' • сохранено ' + formatTime(progress.time);
-        }
-
-        var html =
-            '<div style="padding:.4em .2em 1em;line-height:1.45">' +
-                (episode.poster
-                    ? '<div style="margin-bottom:1em"><img src="' + escapeHtml(episode.poster) + '" style="max-width:26em;max-height:14em;border-radius:.6em;object-fit:cover"></div>'
-                    : '') +
-                '<div style="font-size:1.1em;opacity:.86">' +
-                    escapeHtml(BBT_TITLE + ' • Paramount comedy / Кураж-Бамбей при наличии') +
-                '</div>' +
-                '<div style="margin-top:1em;opacity:.55;font-size:.86em">' +
-                    'Сезон ' + episode.season +
-                    ' • Серия ' + episode.episode +
-                    stateText +
-                '</div>' +
-            '</div>';
-
-        Lampa.Modal.open({
-            title: episode.title,
-            html: $(html),
-            size: 'medium',
-            onBack: function () {
-                if (controller) {
-                    setTimeout(function () {
-                        Lampa.Controller.toggle(controller);
-                    }, 0);
-                }
-            }
-        });
-    }
-
-    function openBigBangEpisodeActions(episode) {
-        var controller = '';
-        var progress = bbtReadProgress(episode);
-        var canContinue = progress.time > 10 && progress.percent < 90;
-        var items = [];
-
-        try {
-            controller = Lampa.Controller.enabled().name;
-        } catch (e) {
-            controller = 'content';
-        }
-
-        items.push({
-            title: canContinue
-                ? ('▶ Продолжить с ' + formatTime(progress.time))
-                : '▶ Смотреть',
-            action: 'play',
-            restart: false
-        });
-
-        if (canContinue) {
-            items.push({
-                title: '↺ Смотреть сначала',
-                action: 'play',
-                restart: true
-            });
-        }
-
-        items.push({
-            title: 'О серии',
-            action: 'info'
-        });
-
-        Lampa.Select.show({
-            title: BBT_TITLE + ' • ' + episode.season + 'x' + pad2(episode.episode),
-            items: items,
-
-            onSelect: function (item) {
-                if (!item) return;
-
-                if (item.action === 'play') {
-                    Lampa.Select.close();
-
-                    setTimeout(function () {
-                        playBigBangEpisode(episode, item.restart);
-                    }, 120);
-
-                    return;
-                }
-
-                if (item.action === 'info') {
-                    Lampa.Select.close();
-
-                    setTimeout(function () {
-                        showBigBangInfo(episode, controller);
-                    }, 120);
-                }
-            },
-
-            onBack: function () {
-                if (controller) {
-                    setTimeout(function () {
-                        Lampa.Controller.toggle(controller);
-                    }, 0);
-                }
-            }
-        });
     }
 
 
@@ -1609,16 +1030,6 @@
                     self.build(lines);
                 }
 
-                if (mode === 'bbt_seasons') {
-                    finish(buildBigBangSeasonLines());
-                    return;
-                }
-
-                if (mode === 'bbt_episodes') {
-                    finish(buildBigBangEpisodeLines(seasonNumber));
-                    return;
-                }
-
                 if (mode === 'fg_seasons') {
                     finish(buildFamilyGuySeasonLines());
                     return;
@@ -1692,7 +1103,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + The Big Bang Theory + Гриффины • Cloverdale • v0.4'
+                    description: 'South Park + Гриффины • Cloverdale • v0.4.1'
                 };
             }
         } catch (e) {}
