@@ -14,7 +14,7 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.5.4';
+    var VERSION = '0.5.5';
     var TITLE = 'Cloverdale';
 
     var CLOVERDALE_BG = '#292929';
@@ -80,8 +80,8 @@
     }
 
     function injectCloverdaleStyle() {
-        if (document.getElementById('cloverdale-style-v054')) return;
-        var oldStyle = document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
+        if (document.getElementById('cloverdale-style-v055')) return;
+        var oldStyle = document.getElementById('cloverdale-style-v054') || document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
         if (oldStyle && oldStyle.parentNode) oldStyle.parentNode.removeChild(oldStyle);
         var css = '' +
         '.cloverdale-screen{background:' + CLOVERDALE_BG + ' !important;}' +
@@ -91,12 +91,12 @@
         '.cloverdale-screen .card__title{font-weight:600;}' +
         '.cloverdale-library .card{max-width:16em;margin-right:1.25em;}' +
         '.cloverdale-library .card__view{aspect-ratio:3/4;height:auto !important;}' +
-        '.cloverdale-grid .card{margin-right:1em;margin-bottom:.9em;}' +'.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +'.cloverdale-episodes .card__view{aspect-ratio:16/9;height:auto !important;}' +'.cloverdale-episodes .card{margin-right:1em;margin-bottom:1em;}' +
+        '.cloverdale-grid .card{margin-right:1em;margin-bottom:.9em;}' +'.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +'.cloverdale-episodes .card__view{aspect-ratio:16/9;height:auto !important;}' +'.cloverdale-episodes .card{box-sizing:border-box;width:calc(25% - 1.5em) !important;max-width:calc(25% - 1.5em) !important;flex:0 0 calc(25% - 1.5em) !important;margin-right:1.5em;margin-bottom:1.35em;}' +'.cloverdale-episodes .card:last-child{margin-right:0;}' +
         
         '.cloverdale-bottom-space{height:8em;min-height:8em;pointer-events:none;}' +
         '@media(max-width:900px){.cloverdale-bottom-space{height:11em;min-height:11em}}';
         var style = document.createElement('style');
-        style.id = 'cloverdale-style-v054';
+        style.id = 'cloverdale-style-v055';
         style.textContent = css;
         document.head.appendChild(style);
     }
@@ -828,7 +828,7 @@
             return {
                 title: index === 0 ? 'Сезоны' : '',
                 results: group,
-                params: { items: { align_left: true, view: 4 } }
+                params: { items: { align_left: true, view: 5 } }
             };
         });
     }
@@ -1080,7 +1080,7 @@
         var eps = Object.keys(FG_CATALOG[String(seasonNumber)] || {}).map(function(x){return parseInt(x,10);}).sort(function(a,b){return a-b;});
         var episodes = eps.map(function(e){ return fgEpisodeCard(fgEpisodeData(seasonNumber,e)); });
         return chunks(episodes, 4).map(function (group, index) {
-            return { title: index === 0 ? 'Серии' : '', results: group, params: { items: { align_left: true, view: 4 } } };
+            return { title: index === 0 ? 'Серии' : '', results: group, params: { items: { align_left: true, view: 5 } } };
         });
     }
 
@@ -1239,7 +1239,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + Гриффины • Cloverdale • v0.5.4'
+                    description: 'South Park + Гриффины • Cloverdale • v0.5.5'
                 };
             }
         } catch (e) {}
