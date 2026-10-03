@@ -14,8 +14,8 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.3.1';
-    var TITLE = 'Сериалы';
+    var VERSION = '0.3.2';
+    var TITLE = 'Cloverdale';
 
     var SP_TITLE = 'Южный Парк';
     var PROGRESS_PREFIX = 'kkv1_progress_';
