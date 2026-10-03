@@ -14,7 +14,7 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.5.0';
+    var VERSION = '0.5.2';
     var TITLE = 'Cloverdale';
 
     var CLOVERDALE_BG = '#292929';
@@ -80,7 +80,9 @@
     }
 
     function injectCloverdaleStyle() {
-        if (document.getElementById('cloverdale-style-v050')) return;
+        if (document.getElementById('cloverdale-style-v052')) return;
+        var oldStyle = document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
+        if (oldStyle && oldStyle.parentNode) oldStyle.parentNode.removeChild(oldStyle);
         var css = '' +
         '.cloverdale-screen{background:' + CLOVERDALE_BG + ' !important;}' +
         '.cloverdale-screen .activity__body,.cloverdale-screen .main,.cloverdale-screen .scroll__body{background:' + CLOVERDALE_BG + ';}' +
@@ -89,18 +91,21 @@
         '.cloverdale-screen .card__title{font-weight:600;}' +
         '.cloverdale-library .card{max-width:20em;}' +
         '.cloverdale-library .card__view{aspect-ratio:4/3;height:auto !important;}' +
-        '.cloverdale-grid .card__view{aspect-ratio:4/3;height:auto !important;}' +
-        '.cloverdale-hero{position:relative;margin:0 0 2.2em 0;min-height:26em;border-radius:1.4em;overflow:hidden;background:#222;}' +
+        '.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +
+        '.cloverdale-paged .items-line__body>.scroll>.scroll__body,.cloverdale-paged .items-line__body>.scroll__body{display:grid !important;grid-template-rows:repeat(2,max-content);grid-auto-flow:column;align-items:start;}' +
+        '.cloverdale-paged .items-line{margin-bottom:1.2em;}' +
+        '.cloverdale-bottom-space{height:8em;min-height:8em;pointer-events:none;}' +
+        '.cloverdale-hero{position:relative;margin:1.35em 1.55em 2.35em;aspect-ratio:16/9;min-height:0;border-radius:1.4em;overflow:hidden;background:#222;}' +
         '.cloverdale-hero__bg{position:absolute;inset:0;background-position:center;background-size:cover;}' +
-        '.cloverdale-hero__shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(24,24,24,.96) 0%,rgba(24,24,24,.78) 34%,rgba(24,24,24,.18) 72%,rgba(24,24,24,.05) 100%),linear-gradient(0deg,'+CLOVERDALE_BG+' 0%,rgba(41,41,41,0) 34%);}' +
+        '.cloverdale-hero__shade{position:absolute;inset:0;background:linear-gradient(0deg,'+CLOVERDALE_BG+' 0%,rgba(41,41,41,.72) 9%,rgba(41,41,41,.28) 22%,rgba(41,41,41,0) 40%);}' +
         '.cloverdale-hero__content{position:relative;z-index:2;width:42%;padding:4.2em 3.2em 3.8em;}' +
         '.cloverdale-hero__logo{display:block;max-width:21em;max-height:8em;object-fit:contain;object-position:left center;margin-bottom:1.6em;}' +
         '.cloverdale-hero--sp .cloverdale-hero__logo{filter:brightness(0) invert(1);}' +
-        '.cloverdale-hero__desc{font-size:1.15em;line-height:1.55;color:rgba(255,255,255,.88);max-width:34em;}' +
+        '.cloverdale-hero__desc{font-size:1.15em;line-height:1.55;color:rgba(255,255,255,.92);max-width:34em;text-shadow:0 .12em .7em rgba(0,0,0,.9);}' +
         '.cloverdale-section-title{font-size:1.55em;font-weight:700;margin:0 0 .8em .1em;}' +
-        '@media(max-width:900px){.cloverdale-hero{min-height:22em}.cloverdale-hero__content{width:58%;padding:3em 2em}.cloverdale-hero__logo{max-width:16em}.cloverdale-hero__desc{font-size:1em}}';
+        '@media(max-width:900px){.cloverdale-hero{margin:1em 1em 1.8em;aspect-ratio:16/9}.cloverdale-hero__content{width:58%;padding:3em 2em}.cloverdale-hero__logo{max-width:16em}.cloverdale-hero__desc{font-size:1em}.cloverdale-bottom-space{height:11em;min-height:11em}}';
         var style = document.createElement('style');
-        style.id = 'cloverdale-style-v050';
+        style.id = 'cloverdale-style-v052';
         style.textContent = css;
         document.head.appendChild(style);
     }
@@ -123,14 +128,19 @@
             var render = activity.render();
             render.addClass('cloverdale-screen');
             if (mode === 'library') render.addClass('cloverdale-library');
-            else render.addClass('cloverdale-grid');
+            else { render.addClass('cloverdale-grid'); render.addClass('cloverdale-paged'); }
             if (mode === 'sp_seasons' || mode === 'fg_seasons') {
-                var target = render.find('.activity__body');
-                if (!target.length) target = render.find('.scroll__body');
+                var target = render.find('.scroll__body').first();
+                if (!target.length) target = render.find('.activity__body').first();
                 if (!target.length) target = render;
                 if (!target.find('.cloverdale-hero').length) {
                     target.prepend($(heroHtml(mode === 'sp_seasons' ? 'southpark' : 'familyguy')));
                 }
+            }
+            var scrollTarget = render.find('.scroll__body').first();
+            if (!scrollTarget.length) scrollTarget = render.find('.activity__body').first();
+            if (scrollTarget.length && !scrollTarget.children('.cloverdale-bottom-space').length) {
+                scrollTarget.append($('<div class="cloverdale-bottom-space"></div>'));
             }
         } catch (e) {}
     }
@@ -539,14 +549,28 @@
         return cardData;
     }
 
+    function episodeDisplayTitle(title, episodeNumber, showTitle) {
+        var raw = String(title || '').replace(/\s+/g, ' ').trim();
+        var names = [showTitle, SP_TITLE, FG_TITLE, 'South Park', 'Family Guy'];
+        names.forEach(function (name) {
+            if (!name) return;
+            var escaped = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            raw = raw.replace(new RegExp('^' + escaped + '\\s*[:\\-–—|•]?\\s*', 'i'), '');
+        });
+        raw = raw.replace(/^Серия\s*\d+\s*[:\-–—|•]?\s*/i, '');
+        raw = raw.replace(/^\d+\s*серия\s*[:\-–—|•]?\s*/i, '');
+        var base = 'Серия ' + episodeNumber;
+        return raw ? (base + ' — ' + raw) : base;
+    }
+
     function episodeCard(episode) {
         var playable = streamSources(episode.season).length > 0;
         var watchState = progressLabel(episode);
         var tm = tmdbEpisodeRecord(SP_TMDB_ID, episode.season, episode.episode);
 
         var cardData = {
-            title: episode.title || (episode.episode + ' серия'),
-            name: episode.title || (episode.episode + ' серия'),
+            title: episodeDisplayTitle(episode.title, episode.episode, SP_TITLE),
+            name: episodeDisplayTitle(episode.title, episode.episode, SP_TITLE),
             original_name:
                 'Сезон ' + episode.season +
                 ' • Серия ' + episode.episode +
@@ -807,6 +831,23 @@
         } catch (e) {}
     }
 
+    function cloverdaleColumns() {
+        try { return window.innerWidth <= 900 ? 3 : 5; } catch (e) { return 5; }
+    }
+
+    function cloverdalePageOrder(items, columns) {
+        var out = [];
+        var pageSize = columns * 2;
+        for (var start = 0; start < items.length; start += pageSize) {
+            var page = items.slice(start, start + pageSize);
+            for (var col = 0; col < columns; col++) {
+                if (page[col]) out.push(page[col]);
+                if (page[col + columns]) out.push(page[col + columns]);
+            }
+        }
+        return out;
+    }
+
     function buildSeasonLines(catalog) {
         var items = [];
 
@@ -822,23 +863,12 @@
                 items.push(seasonCard(seasonData));
             });
 
-        var groups = chunks(items, 7);
-
-        return groups.map(function (group, index) {
-            var first = index * 7 + 1;
-            var last = first + group.length - 1;
-
-            return {
-                title: 'Сезоны ' + first + '–' + last,
-                results: group,
-                params: {
-                    items: {
-                        align_left: true,
-                        view: 5
-                    }
-                }
-            };
-        });
+        var columns = cloverdaleColumns();
+        return [{
+            title: 'Сезоны',
+            results: cloverdalePageOrder(items, columns),
+            params: { items: { align_left: true, view: columns } }
+        }];
     }
 
     function buildEpisodeLines(catalog, seasonNumber) {
@@ -869,25 +899,12 @@
             })
             .map(episodeCard);
 
-        var groups = chunks(episodes, 5);
-
-        return groups.map(function (group) {
-            var firstEpisode = group[0].kk_episode.episode;
-            var lastEpisode = group[group.length - 1].kk_episode.episode;
-
-            return {
-                title: group.length > 1
-                    ? ('Серии ' + firstEpisode + '–' + lastEpisode)
-                    : ('Серия ' + firstEpisode),
-                results: group,
-                params: {
-                    items: {
-                        align_left: true,
-                        view: 5
-                    }
-                }
-            };
-        });
+        var columns = cloverdaleColumns();
+        return [{
+            title: 'Серии',
+            results: cloverdalePageOrder(episodes, columns),
+            params: { items: { align_left: true, view: columns } }
+        }];
     }
 
 
@@ -1076,7 +1093,7 @@
     function fgEpisodeCard(episode) {
         var watchState = fgProgressLabel(episode);
         var cardData = {
-            title: episode.title, name: episode.title,
+            title: episodeDisplayTitle(episode.title, episode.episode, FG_TITLE), name: episodeDisplayTitle(episode.title, episode.episode, FG_TITLE),
             original_name: 'Сезон ' + episode.season + ' • Серия ' + episode.episode + ' • ' + watchState.text,
             overview: episode.voices.join(' • '), img: episode.poster || FG_POSTER,
             fg_type: 'episode', fg_episode: episode, fg_progress: watchState.progress
@@ -1091,18 +1108,15 @@
     function buildFamilyGuySeasonLines() {
         var seasons = Object.keys(FG_CATALOG).map(function(x){return parseInt(x,10);}).sort(function(a,b){return a-b;});
         var items = seasons.map(fgSeasonCard);
-        return chunks(items, 5).map(function (group, index) {
-            return { title: index % 2 === 0 ? 'Сезоны' : '', results: group, params: { items: { align_left: true, view: 5 } } };
-        });
+        var columns = cloverdaleColumns();
+        return [{ title: 'Сезоны', results: cloverdalePageOrder(items, columns), params: { items: { align_left: true, view: columns } } }];
     }
 
     function buildFamilyGuyEpisodeLines(seasonNumber) {
         var eps = Object.keys(FG_CATALOG[String(seasonNumber)] || {}).map(function(x){return parseInt(x,10);}).sort(function(a,b){return a-b;});
         var episodes = eps.map(function(e){ return fgEpisodeCard(fgEpisodeData(seasonNumber,e)); });
-        return chunks(episodes, 5).map(function(group){
-            var a=group[0].fg_episode.episode, b=group[group.length-1].fg_episode.episode;
-            return { title: group.length>1 ? ('Серии '+a+'–'+b) : ('Серия '+a), results: group, params:{items:{align_left:true,view:5}} };
-        });
+        var columns = cloverdaleColumns();
+        return [{ title: 'Серии', results: cloverdalePageOrder(episodes, columns), params: { items: { align_left: true, view: columns } } }];
     }
 
     function pushFamilyGuySeason(season) {
@@ -1260,7 +1274,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + Гриффины • Cloverdale • v0.5.0'
+                    description: 'South Park + Гриффины • Cloverdale • v0.5.2'
                 };
             }
         } catch (e) {}
