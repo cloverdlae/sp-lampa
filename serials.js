@@ -1,6 +1,6 @@
 /*
  * Serials Hub for Lampa 3.x
- * v0.4.1
+ * v0.4.3
  *
  * Shows:
  *   - South Park: stable v1.4 logic + catalog.json + direct HLS rules
@@ -14,7 +14,7 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.4.1';
+    var VERSION = '0.4.3';
     var TITLE = 'Cloverdale';
 
     var SP_TITLE = 'Южный Парк';
@@ -24,6 +24,8 @@
     var FG_PROGRESS_PREFIX = 'fgv1_progress_';
     var FG_LAST_KEY = 'fgv1_last';
     var FG_POSTER = 'https://image.tmdb.org/t/p/w500/xtIFsv0Wpy29Bw7i8gUm1L9x6x8.jpg';
+    var FG_TVMAZE_EPISODES = 'https://api.tvmaze.com/shows/84/episodes';
+    var FG_META_CACHE = null;
     var FG_CATALOG = {"1":{"1":["Филиза","Ren-TV"],"2":["Филиза","Ren-TV"],"3":["Филиза"],"4":["Филиза","Ren-TV"],"5":["Филиза","Ren-TV"],"6":["Филиза","Ren-TV"],"7":["Филиза","Ren-TV"]},"2":{"1":["Ren-TV"],"2":["Ren-TV"],"3":["Ren-TV"],"4":["Ren-TV"],"5":["Ren-TV"],"6":["Ren-TV"],"7":["Ren-TV"],"8":["Ren-TV"],"9":["Ren-TV"],"10":["Ren-TV"],"11":["Ren-TV"],"12":["Ren-TV"],"13":["Ren-TV"],"14":["Ren-TV"],"15":["Ren-TV"],"16":["Ren-TV"],"17":["Ren-TV"],"18":["Ren-TV"],"19":["Ren-TV"],"20":["Ren-TV"],"21":["Ren-TV"]},"3":{"1":["Ren-TV"],"2":["Ren-TV"],"3":["Ren-TV"],"4":["Филиза"],"5":["Ren-TV"],"6":["Ren-TV"],"7":["Ren-TV"],"8":["Ren-TV"],"9":["Ren-TV"],"10":["Ren-TV"],"11":["Ren-TV"],"12":["Ren-TV"],"13":["Ren-TV"],"14":["Ren-TV"],"15":["Ren-TV"],"16":["Ren-TV"],"17":["Ren-TV"],"18":["Ren-TV"],"19":["Ren-TV"],"20":["Ren-TV"],"21":["Ren-TV"],"22":["Ren-TV"]},"4":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"],"22":["Филиза","2x2"],"23":["Филиза","2x2"],"24":["Филиза","2x2"],"26":["Филиза","2x2"],"27":["Филиза","2x2"]},"5":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"]},"6":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"]},"7":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"]},"8":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"]},"9":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"]},"10":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"],"22":["Филиза","2x2"],"23":["Филиза","2x2"]},"11":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"],"22":["Филиза","2x2"]},"12":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"],"19":["Филиза","2x2"],"20":["Филиза","2x2"],"21":["Филиза","2x2"]},"13":{"1":["Филиза","2x2"],"2":["Филиза","2x2"],"3":["Филиза","2x2"],"4":["Филиза","2x2"],"5":["Филиза","2x2"],"6":["Филиза","2x2"],"7":["Филиза","2x2"],"8":["Филиза","2x2"],"9":["Филиза","2x2"],"10":["Филиза","2x2"],"11":["Филиза","2x2"],"12":["Филиза","2x2"],"13":["Филиза","2x2"],"14":["Филиза","2x2"],"15":["Филиза","2x2"],"16":["Филиза","2x2"],"17":["Филиза","2x2"],"18":["Филиза","2x2"]},"14":{"1":["Филиза"],"2":["Филиза"],"3":["Филиза"],"4":["Филиза"],"5":["Филиза"],"6":["Филиза"],"7":["Филиза"],"8":["Филиза"],"9":["Филиза"],"10":["Филиза"],"11":["Филиза"],"12":["Филиза"],"13":["Филиза"],"14":["Филиза"],"15":["Филиза","Omskbird"],"16":["Филиза","Omskbird"],"17":["Филиза","Omskbird"],"18":["Филиза","Omskbird"],"19":["Филиза","Omskbird"],"20":["Филиза","Omskbird"]},"15":{"1":["Филиза","Omskbird"],"2":["Филиза","Omskbird"],"3":["Филиза","Omskbird"],"4":["Филиза","Omskbird"],"5":["Филиза","Omskbird"],"6":["Филиза","Omskbird"],"7":["Филиза","Omskbird"],"8":["Филиза","Omskbird"],"9":["Филиза","Omskbird"],"10":["Филиза","Omskbird"],"11":["Филиза","Omskbird"],"12":["Филиза","Omskbird"],"13":["Филиза","Omskbird"],"14":["Omskbird"],"15":["Филиза","Omskbird"],"16":["Филиза","Omskbird"],"17":["Филиза","Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"16":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"17":{"1":["Филиза","Omskbird"],"2":["Филиза","Omskbird"],"3":["Филиза","Omskbird"],"4":["Филиза","Omskbird"],"5":["Филиза","Omskbird"],"6":["Филиза","Omskbird"],"7":["Филиза","Omskbird"],"8":["Филиза","Omskbird"],"9":["Филиза","Omskbird"],"10":["Филиза","Omskbird"],"11":["Филиза","Omskbird"],"12":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"18":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"19":{"1":["2x2","Omskbird"],"2":["2x2","Omskbird"],"3":["2x2","Omskbird"],"4":["2x2","Omskbird"],"5":["2x2","Omskbird"],"6":["2x2","Omskbird"],"7":["2x2","Omskbird"],"8":["2x2","Omskbird"],"9":["2x2","Omskbird"],"10":["2x2","Omskbird"],"11":["2x2","Omskbird"],"12":["2x2","Omskbird"],"13":["2x2","Omskbird"],"14":["2x2","Omskbird"],"15":["2x2","Omskbird"],"16":["2x2","Omskbird"],"17":["2x2","Omskbird"],"18":["2x2","Omskbird"],"19":["2x2","Omskbird"],"20":["2x2","Omskbird"]},"20":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"21":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"22":{"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"]},"23":{"1":["Omskbird"],"2":["Omskbird"],"3":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"],"16":["Omskbird"],"17":["Omskbird"],"18":["Omskbird"],"19":["Omskbird"],"20":["Omskbird"]},"24":{"1":["Omskbird"],"2":["Omskbird"],"4":["Omskbird"],"5":["Omskbird"],"6":["Omskbird"],"7":["Omskbird"],"8":["Omskbird"],"9":["Omskbird"],"10":["Omskbird"],"11":["Omskbird"],"12":["Omskbird"],"13":["Omskbird"],"14":["Omskbird"],"15":["Omskbird"]}};
     var FG_VOICE_RULES = {
         'Филиза': { id: 'filiza', label: 'Филиза', slug: 'filiza' },
@@ -857,6 +859,94 @@
     }
 
 
+    function fgStripHtml(value) {
+        return String(value || '')
+            .replace(/<br\s*\/?>/gi, ' ')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/gi, ' ')
+            .replace(/&amp;/gi, '&')
+            .replace(/&quot;/gi, '"')
+            .replace(/&#39;/gi, "'")
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function fgBuildMeta(raw) {
+        var byEpisode = {};
+        var seasonHero = {};
+        var list = Array.isArray(raw) ? raw : [];
+
+        list.forEach(function (item) {
+            var season = parseInt(item && item.season, 10) || 0;
+            var episode = parseInt(item && item.number, 10) || 0;
+            if (!season || !episode) return;
+
+            var catalogSeason = FG_CATALOG[String(season)] || {};
+            if (!catalogSeason[String(episode)]) return;
+
+            var image = item && item.image ? (item.image.original || item.image.medium || '') : '';
+            var rating = item && item.rating && item.rating.average != null ? Number(item.rating.average) : 0;
+            var meta = {
+                title: (item && item.name) || (episode + ' серия'),
+                description: fgStripHtml(item && item.summary),
+                image: image,
+                rating: isFinite(rating) ? rating : 0
+            };
+
+            byEpisode[season + ':' + episode] = meta;
+
+            if (image) {
+                var current = seasonHero[String(season)];
+                if (!current || meta.rating > current.rating ||
+                    (meta.rating === current.rating && episode < current.episode)) {
+                    seasonHero[String(season)] = {
+                        image: image,
+                        rating: meta.rating,
+                        episode: episode,
+                        title: meta.title
+                    };
+                }
+            }
+        });
+
+        return { byEpisode: byEpisode, seasonHero: seasonHero };
+    }
+
+    function loadFamilyGuyMeta(done) {
+        if (FG_META_CACHE) {
+            done(FG_META_CACHE, false);
+            return;
+        }
+
+        loadText(
+            FG_TVMAZE_EPISODES,
+            function (payload) {
+                try {
+                    var parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                    FG_META_CACHE = fgBuildMeta(parsed);
+                    done(FG_META_CACHE, false);
+                } catch (e) {
+                    FG_META_CACHE = { byEpisode: {}, seasonHero: {} };
+                    done(FG_META_CACHE, true);
+                }
+            },
+            function () {
+                FG_META_CACHE = { byEpisode: {}, seasonHero: {} };
+                done(FG_META_CACHE, true);
+            }
+        );
+    }
+
+    function fgMeta(season, episode) {
+        if (!FG_META_CACHE || !FG_META_CACHE.byEpisode) return null;
+        return FG_META_CACHE.byEpisode[String(season) + ':' + String(episode)] || null;
+    }
+
+    function fgSeasonHero(season) {
+        if (!FG_META_CACHE || !FG_META_CACHE.seasonHero) return null;
+        return FG_META_CACHE.seasonHero[String(season)] || null;
+    }
+
     function fgProgressKey(episode) {
         return FG_PROGRESS_PREFIX + 's' + pad2(episode.season) + 'e' + pad2(episode.episode);
     }
@@ -905,21 +995,30 @@
     }
 
     function fgEpisodeData(season, episode) {
+        var seasonNumber = parseInt(season, 10) || 0;
+        var episodeNumber = parseInt(episode, 10) || 0;
+        var meta = fgMeta(seasonNumber, episodeNumber);
         return {
-            show: 'familyguy', season: parseInt(season, 10) || 0, episode: parseInt(episode, 10) || 0,
-            title: parseInt(episode, 10) + ' серия', description: '', poster: FG_POSTER,
-            voices: fgVoices(season, episode)
+            show: 'familyguy', season: seasonNumber, episode: episodeNumber,
+            title: (meta && meta.title) ? meta.title : ('Серия ' + episodeNumber),
+            description: meta ? meta.description : '',
+            poster: (meta && meta.image) ? meta.image : FG_POSTER,
+            voices: fgVoices(seasonNumber, episodeNumber)
         };
     }
 
     function fgSeasonCard(season) {
         var eps = Object.keys(FG_CATALOG[String(season)] || {}).map(function (x) { return parseInt(x,10); }).sort(function(a,b){return a-b;});
+        var hero = fgSeasonHero(season);
+        var seasonImage = hero && hero.image ? hero.image : FG_POSTER;
+        var seasonSubtitle = eps.length + ' серий';
+        if (hero && hero.rating > 0) seasonSubtitle += ' • ★ ' + hero.rating.toFixed(1) + ' • серия ' + hero.episode;
         var cardData = {
-            title: season + ' сезон', name: season + ' сезон',
-            original_name: eps.length + ' серий', overview: FG_TITLE + ' • ' + season + ' сезон', img: FG_POSTER,
+            title: 'Сезон ' + season, name: 'Сезон ' + season,
+            original_name: seasonSubtitle, overview: FG_TITLE + ' • ' + season + ' сезон', img: seasonImage,
             fg_type: 'season', fg_season: season
         };
-        cardData.params = { style: { name: 'wide' }, emit: {
+        cardData.params = { style: { name: 'small' }, emit: {
             onFocus: function () { updateBackground(cardData); },
             onlyEnter: function () { pushFamilyGuySeason(season); }
         }};
@@ -934,7 +1033,7 @@
             overview: episode.voices.join(' • '), img: episode.poster || FG_POSTER,
             fg_type: 'episode', fg_episode: episode, fg_progress: watchState.progress
         };
-        cardData.params = { style: { name: 'wide' }, emit: {
+        cardData.params = { style: { name: 'small' }, emit: {
             onFocus: function () { updateBackground(cardData); },
             onlyEnter: function () { openFamilyGuyEpisodeActions(episode); }
         }};
@@ -944,17 +1043,17 @@
     function buildFamilyGuySeasonLines() {
         var seasons = Object.keys(FG_CATALOG).map(function(x){return parseInt(x,10);}).sort(function(a,b){return a-b;});
         var items = seasons.map(fgSeasonCard);
-        return chunks(items, 6).map(function (group) {
-            return { title: 'Сезоны', results: group, params: { items: { align_left: true, view: 5 } } };
+        return chunks(items, 8).map(function (group) {
+            return { title: 'Сезоны', results: group, params: { items: { align_left: true, view: 6 } } };
         });
     }
 
     function buildFamilyGuyEpisodeLines(seasonNumber) {
         var eps = Object.keys(FG_CATALOG[String(seasonNumber)] || {}).map(function(x){return parseInt(x,10);}).sort(function(a,b){return a-b;});
         var episodes = eps.map(function(e){ return fgEpisodeCard(fgEpisodeData(seasonNumber,e)); });
-        return chunks(episodes, 8).map(function(group){
+        return chunks(episodes, 10).map(function(group){
             var a=group[0].fg_episode.episode, b=group[group.length-1].fg_episode.episode;
-            return { title: group.length>1 ? ('Серии '+a+'–'+b) : ('Серия '+a), results: group, params:{items:{align_left:true,view:4}} };
+            return { title: group.length>1 ? ('Серии '+a+'–'+b) : ('Серия '+a), results: group, params:{items:{align_left:true,view:6}} };
         });
     }
 
@@ -1031,12 +1130,18 @@
                 }
 
                 if (mode === 'fg_seasons') {
-                    finish(buildFamilyGuySeasonLines());
+                    loadFamilyGuyMeta(function (meta, fallback) {
+                        finish(buildFamilyGuySeasonLines());
+                        if (fallback) Lampa.Noty.show('Кадры Гриффинов пока недоступны');
+                    });
                     return;
                 }
 
                 if (mode === 'fg_episodes') {
-                    finish(buildFamilyGuyEpisodeLines(seasonNumber));
+                    loadFamilyGuyMeta(function (meta, fallback) {
+                        finish(buildFamilyGuyEpisodeLines(seasonNumber));
+                        if (fallback) Lampa.Noty.show('Кадры Гриффинов пока недоступны');
+                    });
                     return;
                 }
 
@@ -1103,7 +1208,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + Гриффины • Cloverdale • v0.4.1'
+                    description: 'South Park + Гриффины • Cloverdale • v0.4.3'
                 };
             }
         } catch (e) {}
