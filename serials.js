@@ -14,7 +14,7 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.5.7';
+    var VERSION = '0.5.8';
     var TITLE = 'Cloverdale';
 
     var CLOVERDALE_BG = '#292929';
@@ -80,8 +80,8 @@
     }
 
     function injectCloverdaleStyle() {
-        if (document.getElementById('cloverdale-style-v057')) return;
-        var oldStyle = document.getElementById('cloverdale-style-v056') || document.getElementById('cloverdale-style-v055') || document.getElementById('cloverdale-style-v054') || document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
+        if (document.getElementById('cloverdale-style-v058')) return;
+        var oldStyle = document.getElementById('cloverdale-style-v057') || document.getElementById('cloverdale-style-v056') || document.getElementById('cloverdale-style-v055') || document.getElementById('cloverdale-style-v054') || document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
         if (oldStyle && oldStyle.parentNode) oldStyle.parentNode.removeChild(oldStyle);
         var css = '' +
         '.cloverdale-screen{background:' + CLOVERDALE_BG + ' !important;}' +
@@ -96,7 +96,7 @@
         '.cloverdale-bottom-space{height:8em;min-height:8em;pointer-events:none;}' +
         '@media(max-width:900px){.cloverdale-bottom-space{height:11em;min-height:11em}}';
         var style = document.createElement('style');
-        style.id = 'cloverdale-style-v057';
+        style.id = 'cloverdale-style-v058';
         style.textContent = css;
         document.head.appendChild(style);
     }
@@ -877,13 +877,19 @@
 
     function libraryCard(options) {
         var cardData = {
+            id: options.tmdb_id || 0,
+            source: 'tmdb',
+            method: 'tv',
+            type: 'tv',
             title: options.title,
             name: options.title,
             original_name: options.subtitle || 'OK — открыть',
             overview: options.overview || '',
+            poster_path: options.poster_path || '',
+            backdrop_path: options.backdrop_path || '',
             img: options.img || '',
             poster: options.img || '',
-            backdrop: options.img || '',
+            backdrop: options.backdrop || options.img || '',
             hub_show: options.id
         };
 
@@ -905,24 +911,36 @@
     }
 
     function buildLibraryLines(catalog) {
-        var southParkImage = SP_LIBRARY_IMAGE;
+        var spShow = TMDB_SHOW_CACHE[SP_TMDB_ID] || {};
+        var fgShow = TMDB_SHOW_CACHE[FG_TMDB_ID] || {};
+
+        var southParkImage = spShow.poster_path ? tmdbImage(spShow.poster_path, 'w500') : SP_LIBRARY_IMAGE;
+        var familyGuyImage = fgShow.poster_path ? tmdbImage(fgShow.poster_path, 'w500') : FG_LIBRARY_IMAGE;
 
         return [{
             title: 'Выберите сериал',
             results: [
                 libraryCard({
                     id: 'southpark',
+                    tmdb_id: SP_TMDB_ID,
                     title: SP_TITLE,
                     subtitle: '28 сезонов • открыть',
-                    overview: 'Южный Парк',
-                    img: southParkImage
+                    overview: spShow.overview || 'Южный Парк',
+                    poster_path: spShow.poster_path || '',
+                    backdrop_path: spShow.backdrop_path || '',
+                    img: southParkImage,
+                    backdrop: spShow.backdrop_path ? tmdbImage(spShow.backdrop_path, 'w780') : southParkImage
                 }),
                 libraryCard({
                     id: 'familyguy',
+                    tmdb_id: FG_TMDB_ID,
                     title: FG_TITLE,
                     subtitle: '24 сезона • 4 озвучки',
-                    overview: FG_TITLE,
-                    img: FG_LIBRARY_IMAGE
+                    overview: fgShow.overview || FG_TITLE,
+                    poster_path: fgShow.poster_path || '',
+                    backdrop_path: fgShow.backdrop_path || '',
+                    img: familyGuyImage,
+                    backdrop: fgShow.backdrop_path ? tmdbImage(fgShow.backdrop_path, 'w780') : familyGuyImage
                 })
             ],
             params: {
@@ -1158,6 +1176,15 @@
                     setTimeout(function(){ decorateScreen(self.activity, mode); }, 0);
                 }
 
+                if (mode === 'library') {
+                    loadTmdbShow(SP_TMDB_ID, function () {
+                        loadTmdbShow(FG_TMDB_ID, function () {
+                            finish(buildLibraryLines({}));
+                        });
+                    });
+                    return;
+                }
+
                 if (mode === 'fg_seasons') {
                     loadFamilyGuyMeta(function (meta, fallback) {
                         finish(buildFamilyGuySeasonLines());
@@ -1240,7 +1267,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + Гриффины • Cloverdale • v0.5.7'
+                    description: 'South Park + Гриффины • Cloverdale • v0.5.8'
                 };
             }
         } catch (e) {}
