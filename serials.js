@@ -14,14 +14,14 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.5.6';
+    var VERSION = '0.5.7';
     var TITLE = 'Cloverdale';
 
     var CLOVERDALE_BG = '#292929';
     var SP_TMDB_ID = 2190;
     var FG_TMDB_ID = 1434;
-    var SP_LIBRARY_IMAGE = 'https://image.tmdb.org/t/p/w1280/69lJGPmFoUplHWoVnCbCcXKRqOl.jpg';
-    var FG_LIBRARY_IMAGE = 'https://image.tmdb.org/t/p/w1280/9zdZeAxt7Xxu5omPufFu1TMl8BP.jpg';
+    var SP_LIBRARY_IMAGE = 'https://image.tmdb.org/t/p/w500/69lJGPmFoUplHWoVnCbCcXKRqOl.jpg';
+    var FG_LIBRARY_IMAGE = 'https://image.tmdb.org/t/p/w500/9zdZeAxt7Xxu5omPufFu1TMl8BP.jpg';
     var SP_HERO_IMAGE = 'https://avatars.mds.yandex.net/get-ott/18164279/2a0000019b6ed8b28b20b9273176de58eca9/2016x1134';
     var FG_HERO_IMAGE = 'https://i3.wp.com/wallpapercg.com/download/family-guy--22249.jpg';
     var SP_LOGO = 'https://upload.wikimedia.org/wikipedia/commons/b/bc/South_Park_Logo.svg';
@@ -80,8 +80,8 @@
     }
 
     function injectCloverdaleStyle() {
-        if (document.getElementById('cloverdale-style-v056')) return;
-        var oldStyle = document.getElementById('cloverdale-style-v055') || document.getElementById('cloverdale-style-v054') || document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
+        if (document.getElementById('cloverdale-style-v057')) return;
+        var oldStyle = document.getElementById('cloverdale-style-v056') || document.getElementById('cloverdale-style-v055') || document.getElementById('cloverdale-style-v054') || document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
         if (oldStyle && oldStyle.parentNode) oldStyle.parentNode.removeChild(oldStyle);
         var css = '' +
         '.cloverdale-screen{background:' + CLOVERDALE_BG + ' !important;}' +
@@ -91,12 +91,12 @@
         '.cloverdale-screen .card__title{font-weight:600;}' +
         '.cloverdale-library .card{max-width:16em;margin-right:1.25em;}' +
         '.cloverdale-library .card__view{aspect-ratio:3/4;height:auto !important;}' +
-        '.cloverdale-grid .card{margin-right:1em;margin-bottom:.9em;}' +'.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +'.cloverdale-episodes .card__view{aspect-ratio:16/9;height:auto !important;}' +'.cloverdale-episodes .card{box-sizing:border-box;max-width:18em !important;margin-right:1.35em;margin-bottom:1.35em;}' +'.cloverdale-episodes .card:last-child{margin-right:0;}' +
+        '.cloverdale-grid .card{box-sizing:border-box;margin-right:1.15em;margin-bottom:1.1em;}' +'.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +
         
         '.cloverdale-bottom-space{height:8em;min-height:8em;pointer-events:none;}' +
         '@media(max-width:900px){.cloverdale-bottom-space{height:11em;min-height:11em}}';
         var style = document.createElement('style');
-        style.id = 'cloverdale-style-v056';
+        style.id = 'cloverdale-style-v057';
         style.textContent = css;
         document.head.appendChild(style);
     }
@@ -832,7 +832,7 @@
             return {
                 title: index === 0 ? 'Сезоны' : '',
                 results: group,
-                params: { items: { align_left: true, view: 6 } }
+                params: { items: { align_left: true, view: 4 } }
             };
         });
     }
@@ -882,6 +882,8 @@
             original_name: options.subtitle || 'OK — открыть',
             overview: options.overview || '',
             img: options.img || '',
+            poster: options.img || '',
+            backdrop: options.img || '',
             hub_show: options.id
         };
 
@@ -903,12 +905,7 @@
     }
 
     function buildLibraryLines(catalog) {
-        var southParkImage = '';
-        var firstSeason = seasonRecord(catalog, 1);
-
-        if (firstSeason) {
-            southParkImage = SP_LIBRARY_IMAGE;
-        }
+        var southParkImage = SP_LIBRARY_IMAGE;
 
         return [{
             title: 'Выберите сериал',
@@ -1084,7 +1081,7 @@
         var eps = Object.keys(FG_CATALOG[String(seasonNumber)] || {}).map(function(x){return parseInt(x,10);}).sort(function(a,b){return a-b;});
         var episodes = eps.map(function(e){ return fgEpisodeCard(fgEpisodeData(seasonNumber,e)); });
         return chunks(episodes, 4).map(function (group, index) {
-            return { title: index === 0 ? 'Серии' : '', results: group, params: { items: { align_left: true, view: 6 } } };
+            return { title: index === 0 ? 'Серии' : '', results: group, params: { items: { align_left: true, view: 4 } } };
         });
     }
 
@@ -1243,7 +1240,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + Гриффины • Cloverdale • v0.5.6'
+                    description: 'South Park + Гриффины • Cloverdale • v0.5.7'
                 };
             }
         } catch (e) {}
