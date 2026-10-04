@@ -14,7 +14,7 @@
 
     var PLUGIN_ID = 'serials_hub_v1';
     var COMPONENT = 'serials_hub_native';
-    var VERSION = '0.5.5';
+    var VERSION = '0.5.6';
     var TITLE = 'Cloverdale';
 
     var CLOVERDALE_BG = '#292929';
@@ -80,8 +80,8 @@
     }
 
     function injectCloverdaleStyle() {
-        if (document.getElementById('cloverdale-style-v055')) return;
-        var oldStyle = document.getElementById('cloverdale-style-v054') || document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
+        if (document.getElementById('cloverdale-style-v056')) return;
+        var oldStyle = document.getElementById('cloverdale-style-v055') || document.getElementById('cloverdale-style-v054') || document.getElementById('cloverdale-style-v053') || document.getElementById('cloverdale-style-v052') || document.getElementById('cloverdale-style-v051') || document.getElementById('cloverdale-style-v050');
         if (oldStyle && oldStyle.parentNode) oldStyle.parentNode.removeChild(oldStyle);
         var css = '' +
         '.cloverdale-screen{background:' + CLOVERDALE_BG + ' !important;}' +
@@ -91,12 +91,12 @@
         '.cloverdale-screen .card__title{font-weight:600;}' +
         '.cloverdale-library .card{max-width:16em;margin-right:1.25em;}' +
         '.cloverdale-library .card__view{aspect-ratio:3/4;height:auto !important;}' +
-        '.cloverdale-grid .card{margin-right:1em;margin-bottom:.9em;}' +'.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +'.cloverdale-episodes .card__view{aspect-ratio:16/9;height:auto !important;}' +'.cloverdale-episodes .card{box-sizing:border-box;width:calc(25% - 1.5em) !important;max-width:calc(25% - 1.5em) !important;flex:0 0 calc(25% - 1.5em) !important;margin-right:1.5em;margin-bottom:1.35em;}' +'.cloverdale-episodes .card:last-child{margin-right:0;}' +
+        '.cloverdale-grid .card{margin-right:1em;margin-bottom:.9em;}' +'.cloverdale-grid .card__view{aspect-ratio:3/4;height:auto !important;}' +'.cloverdale-episodes .card__view{aspect-ratio:16/9;height:auto !important;}' +'.cloverdale-episodes .card{box-sizing:border-box;max-width:18em !important;margin-right:1.35em;margin-bottom:1.35em;}' +'.cloverdale-episodes .card:last-child{margin-right:0;}' +
         
         '.cloverdale-bottom-space{height:8em;min-height:8em;pointer-events:none;}' +
         '@media(max-width:900px){.cloverdale-bottom-space{height:11em;min-height:11em}}';
         var style = document.createElement('style');
-        style.id = 'cloverdale-style-v055';
+        style.id = 'cloverdale-style-v056';
         style.textContent = css;
         document.head.appendChild(style);
     }
@@ -494,14 +494,16 @@
     function seasonCard(seasonData) {
         var season = parseInt(seasonData.season, 10);
         var count = (seasonData.episodes || []).length;
+        var tmSeason = tmdbSeasonRecord(SP_TMDB_ID, season);
+        var tmSeasonPoster = tmSeason && tmSeason.poster_path ? tmdbImage(tmSeason.poster_path, 'w500') : '';
         var cardData = {
-            title: season + ' сезон',
-            name: season + ' сезон',
+            title: 'Сезон ' + season,
+            name: 'Сезон ' + season,
             original_name: count ? (count + ' серий • OK — открыть') : 'OK — открыть сезон',
             overview: count
                 ? ('Сезон ' + season + ' • ' + count + ' серий')
                 : ('Сезон ' + season),
-            img: firstPoster(seasonData),
+            img: tmSeasonPoster || firstPoster(seasonData),
             kk_type: 'season',
             kk_season: season
         };
@@ -639,24 +641,26 @@
                 var itemUrl = streamUrl(item.season, item.episode, rule.id);
 
                 if (itemUrl) {
+                    var itemTm = tmdbEpisodeRecord(SP_TMDB_ID, item.season, item.episode);
                     all.push({
-                        title: item.title || (item.episode + ' серия'),
+                        title: episodeDisplayTitle((itemTm && itemTm.name) || item.title, item.episode, SP_TITLE),
                         url: itemUrl,
                         season: item.season,
                         episode: item.episode,
-                        img: item.poster || '',
+                        img: (itemTm && itemTm.still_path) ? tmdbImage(itemTm.still_path, 'w780') : item.poster || '',
                         timeline: timelineForEpisode(item, false)
                     });
                 }
             });
         }
 
+        var currentTm = tmdbEpisodeRecord(SP_TMDB_ID, episode.season, episode.episode);
         var current = {
-            title: episode.title || (episode.episode + ' серия'),
+            title: episodeDisplayTitle((currentTm && currentTm.name) || episode.title, episode.episode, SP_TITLE),
             url: url,
             season: episode.season,
             episode: episode.episode,
-            img: (tm && tm.still_path) ? tmdbImage(tm.still_path, 'w780') : episode.poster || '',
+            img: (currentTm && currentTm.still_path) ? tmdbImage(currentTm.still_path, 'w780') : episode.poster || '',
             timeline: timelineForEpisode(episode, !!restart)
         };
 
@@ -828,7 +832,7 @@
             return {
                 title: index === 0 ? 'Сезоны' : '',
                 results: group,
-                params: { items: { align_left: true, view: 5 } }
+                params: { items: { align_left: true, view: 6 } }
             };
         });
     }
@@ -1080,7 +1084,7 @@
         var eps = Object.keys(FG_CATALOG[String(seasonNumber)] || {}).map(function(x){return parseInt(x,10);}).sort(function(a,b){return a-b;});
         var episodes = eps.map(function(e){ return fgEpisodeCard(fgEpisodeData(seasonNumber,e)); });
         return chunks(episodes, 4).map(function (group, index) {
-            return { title: index === 0 ? 'Серии' : '', results: group, params: { items: { align_left: true, view: 5 } } };
+            return { title: index === 0 ? 'Серии' : '', results: group, params: { items: { align_left: true, view: 6 } } };
         });
     }
 
@@ -1239,7 +1243,7 @@
                     type: 'other',
                     version: VERSION,
                     name: TITLE,
-                    description: 'South Park + Гриффины • Cloverdale • v0.5.5'
+                    description: 'South Park + Гриффины • Cloverdale • v0.5.6'
                 };
             }
         } catch (e) {}
